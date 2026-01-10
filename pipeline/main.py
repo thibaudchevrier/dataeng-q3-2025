@@ -1,13 +1,8 @@
 import logging
-import requests
 import os
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Dict, Tuple, Optional, Callable
-import time
-from functools import wraps, partial
 from datetime import datetime
-from utils.data_loader import load_and_validate_transactions
-from utils.database import get_db_session, bulk_insert_transactions, bulk_upsert_predictions
+from infrastructure import get_db_session, bulk_insert_transactions, bulk_upsert_predictions, load_and_validate_transactions, predict_batch
 
 # Configure logging
 logging.basicConfig(
@@ -15,78 +10,6 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-
-def retry_with_backoff(max_retries: int = 3, initial_delay: float = 1.0):
-    """
-    Decorator for exponential backoff retry logic.
-    
-    Args:
-        max_retries: Maximum number of retry attempts
-        initial_delay: Initial delay in seconds for exponential backoff
-        
-    Returns:
-        Decorated function that returns (result, None) on success or (None, original_args) on failure
-    """
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        def wrapper(*args, **kwargs) -> Tuple[Optional[List[Dict]], Optional[List[Dict]]]:
-            delay = initial_delay
-            transactions = args[0] if args else None
-            batch_id = args[1] if len(args) > 1 else kwargs.get('batch_id', 'unknown')
-            
-            for attempt in range(max_retries):
-                try:
-                    result = func(*args, **kwargs)
-                    
-                    if attempt > 0:
-                        logger.info(f"Batch {batch_id}: Retry succeeded on attempt {attempt + 1}")
-                    
-                    return result, None
-                    
-                except requests.exceptions.RequestException as e:
-                    if attempt < max_retries - 1:
-                        logger.warning(
-                            f"Batch {batch_id}: Attempt {attempt + 1}/{max_retries} failed - {e}. "
-                            f"Retrying in {delay:.1f}s..."
-                        )
-                        time.sleep(delay)
-                        delay *= 2  # Exponential backoff
-                    else:
-                        logger.error(
-                            f"Batch {batch_id}: All {max_retries} attempts failed - {e}. "
-                            f"Moving {len(transactions) if transactions else 0} transactions to failed queue."
-                        )
-                        return None, transactions
-            
-            return None, transactions
-        
-        return wrapper
-    return decorator
-
-
-@retry_with_backoff(max_retries=int(os.getenv('MAX_RETRIES', '3')), initial_delay=1.0)
-def predict_batch(transactions: List[Dict], batch_id: int) -> List[Dict]:
-    """
-    Send a batch of transactions to the ML API for prediction.
-    
-    Args:
-        transactions: List of transaction dictionaries
-        batch_id: Batch identifier for logging
-        
-    Returns:
-        List of predictions from the API
-    """
-    response = requests.post(
-        "http://localhost:8000/predict",
-        json=transactions,
-        headers={"Content-Type": "application/json"},
-        timeout=30
-    )
-    response.raise_for_status()
-    predictions = response.json()
-    logger.debug(f"Batch {batch_id}: Successfully processed {len(predictions)} transactions")
-    return predictions
 
 
 def main():
@@ -107,7 +30,6 @@ def main():
     row_batch_size = int(os.getenv('ROW_BATCH_SIZE', '5000'))
     api_batch_size = int(os.getenv('API_BATCH_SIZE', '100'))
     api_max_workers = int(os.getenv('API_MAX_WORKERS', '5'))
-    row_dbatch_size = int(os.getenv('ROW_DB_BATCH_SIZE', '1000'))
     
     # Read and validate CSV from MinIO
     s3_path = "s3://transactions/transactions_fr.csv"

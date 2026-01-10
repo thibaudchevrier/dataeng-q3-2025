@@ -9,6 +9,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship, Session
 from sqlalchemy.dialects.postgresql import insert
 from datetime import datetime
+from .utils import _retry_with_backoff
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +78,7 @@ def get_db_session(database_url: str):
         logger.info("Database connection closed")
 
 
+@_retry_with_backoff(max_retries=int(os.getenv('MAX_RETRIES', '3')), initial_delay=1.0)
 def bulk_insert_transactions(session: Session, transactions: List[Dict]):
     """
     Insert transactions with ON CONFLICT DO NOTHING (idempotent).
@@ -91,6 +94,7 @@ def bulk_insert_transactions(session: Session, transactions: List[Dict]):
     logger.info(f"Inserted {len(transactions)} transactions (skipped duplicates)")
 
 
+@_retry_with_backoff(max_retries=int(os.getenv('MAX_RETRIES', '3')), initial_delay=1.0)
 def bulk_upsert_predictions(session: Session, predictions: List[Dict]):
     """
     UPSERT predictions: insert new ones, update existing ones.

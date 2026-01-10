@@ -1,7 +1,6 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, field_validator
 from datetime import datetime
-from typing import Optional
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 
 class Transaction(BaseModel):
@@ -46,37 +45,3 @@ class Transaction(BaseModel):
         # Allow extra fields for forward compatibility
         extra = 'ignore'
 
-
-class PredictionResponse(BaseModel):
-    """
-    Response from ML API prediction endpoint.
-    """
-    transaction_id: str
-    category: str
-    
-    @field_validator('transaction_id')
-    @classmethod
-    def validate_transaction_id(cls, v: str) -> str:
-        """Ensure transaction_id is a valid UUID"""
-        try:
-            UUID(v)
-        except ValueError:
-            raise ValueError(f'Invalid transaction_id UUID: {v}')
-        return v
-    
-    @field_validator('category')
-    @classmethod
-    def category_not_empty(cls, v: str) -> str:
-        if not v or not v.strip():
-            raise ValueError('Category cannot be empty')
-        return v.strip()
-
-
-class ValidationError(BaseModel):
-    """
-    Represents a validation error for a transaction.
-    """
-    original_data: dict
-    error_message: str
-    field: Optional[str] = None
-    timestamp: datetime = Field(default_factory=datetime.now)
