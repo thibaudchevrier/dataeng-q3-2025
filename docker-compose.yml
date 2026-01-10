@@ -1,6 +1,87 @@
 version: '3'
 
 services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: transactions-db
+    environment:
+      POSTGRES_USER: qonto
+      POSTGRES_PASSWORD: qonto_password
+      POSTGRES_DB: transactions
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ml-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qonto -d transactions"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  flyway:
+    image: flyway/flyway:latest
+    container_name: flyway-migrations
+    command: -url=jdbc:postgresql://postgres:5432/transactions -user=qonto -password=qonto_password -connectRetries=60 migrate
+    volumes:
+      - ./migrations:/flyway/sql
+    networks:
+      - ml-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  adminer:
+    image: adminer:latest
+    container_name: adminer-ui
+    ports:
+      - "8080:8080"
+    networks:
+      - ml-network
+    depends_on:
+      - postgres
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio-storage
+    ports:
+      - "9000:9000"  # API
+      - "9001:9001"  # Console UI
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - ml-network
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - ml-network
+    volumes:
+      - ./data:/data
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set myminio http://minio:9000 minioadmin minioadmin;
+      mc mb myminio/transactions --ignore-existing;
+      mc cp /data/transactions_fr.csv myminio/transactions/transactions_fr.csv;
+      echo 'Data uploaded to MinIO successfully';
+      "
+
   ml-api:
     build:
       context: ml_api
@@ -14,6 +95,14 @@ services:
       python -m src.main
     networks:
       - ml-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  minio_data:
+
 networks:
   ml-network:
     driver: bridge
