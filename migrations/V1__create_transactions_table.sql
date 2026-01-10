@@ -11,22 +11,18 @@ CREATE TABLE IF NOT EXISTS transactions (
     
     -- Metadata for tracking
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    -- Data quality/pipeline tracking
-    source VARCHAR(50) NOT NULL, -- 'batch' or 'kafka'
-    pipeline_run_id VARCHAR(100)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create predictions table (separate for better data modeling)
 CREATE TABLE IF NOT EXISTS predictions (
     id SERIAL PRIMARY KEY,
-    transaction_id VARCHAR(255) NOT NULL,
+    transaction_id VARCHAR(255) NOT NULL UNIQUE,  -- One prediction per transaction
     category VARCHAR(100) NOT NULL,
     
     -- Prediction metadata (for future enhancements)
-    confidence_score DECIMAL(5, 4), -- e.g., 0.9542
-    model_version VARCHAR(50),
+    confidence_score DECIMAL(5, 4) DEFAULT 1.0, -- e.g., 0.9542
+    model_version VARCHAR(50) DEFAULT 'v1.0',
     
     -- Tracking
     predicted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -35,16 +31,12 @@ CREATE TABLE IF NOT EXISTS predictions (
     CONSTRAINT fk_transaction
         FOREIGN KEY (transaction_id)
         REFERENCES transactions(id)
-        ON DELETE CASCADE,
-    
-    -- Ensure we can track multiple predictions per transaction over time
-    UNIQUE (transaction_id, predicted_at)
+        ON DELETE CASCADE
 );
 
 -- Create indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_timestamp ON transactions(timestamp);
 CREATE INDEX IF NOT EXISTS idx_merchant ON transactions(merchant);
-CREATE INDEX IF NOT EXISTS idx_source ON transactions(source);
 CREATE INDEX IF NOT EXISTS idx_transaction_id ON predictions(transaction_id);
 CREATE INDEX IF NOT EXISTS idx_category ON predictions(category);
 CREATE INDEX IF NOT EXISTS idx_predicted_at ON predictions(predicted_at);
@@ -76,7 +68,6 @@ LEFT JOIN LATERAL (
 -- Create a view for transaction statistics
 CREATE OR REPLACE VIEW transaction_stats AS
 SELECT 
-    t.source,
     p.category,
     COUNT(*) as transaction_count,
     SUM(t.amount) as total_amount,
@@ -90,4 +81,4 @@ INNER JOIN (
     FROM predictions
     ORDER BY transaction_id, predicted_at DESC
 ) p ON t.id = p.transaction_id
-GROUP BY t.source, p.category;
+GROUP BY p.category;

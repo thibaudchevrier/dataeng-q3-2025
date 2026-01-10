@@ -10,8 +10,12 @@ services:
       POSTGRES_DB: transactions
     ports:
       - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+    # Use tmpfs for ephemeral database (resets on container restart)
+    # Comment out for persistent storage, uncomment for clean slate each time
+    tmpfs:
+      - /var/lib/postgresql/data
+    # volumes:
+    #   - postgres_data:/var/lib/postgresql/data
     networks:
       - ml-network
     healthcheck:
