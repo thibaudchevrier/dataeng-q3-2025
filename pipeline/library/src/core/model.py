@@ -34,6 +34,10 @@ class Transaction(BaseModel):
         Type of operation (e.g., 'debit', 'credit').
     side : str
         Transaction side indicator.
+    processing_type : str
+        Type of processing ('batch' or 'streaming').
+    run_id : str
+        Unique identifier for the processing run.
     """
 
     id: str  # Will be replaced with UUID
@@ -43,6 +47,10 @@ class Transaction(BaseModel):
     merchant: str | None
     operation_type: str
     side: str
+
+    # Lineage tracking fields
+    processing_type: str
+    run_id: str
 
     @field_validator("id", mode="before")
     @classmethod

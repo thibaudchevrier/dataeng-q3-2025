@@ -36,6 +36,10 @@ class Transaction(Base):
     operation_type = Column(String, nullable=False)
     side = Column(String, nullable=False)
 
+    # Lineage tracking columns
+    processing_type = Column(String, nullable=False)  # 'batch' or 'streaming'
+    run_id = Column(String, nullable=False)  # Unique identifier for processing run
+
     # Relationship to predictions
     predictions = relationship("Prediction", back_populates="transaction")
 

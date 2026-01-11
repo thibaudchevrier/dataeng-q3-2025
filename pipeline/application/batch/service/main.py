@@ -14,6 +14,7 @@ from datetime import datetime
 from core import orchestrate_service
 from infrastructure import BaseService, get_db_session
 from infrastructure.generator import load_and_validate_transactions
+from sqlalchemy.orm import Session
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -50,7 +51,7 @@ class BatchService(BaseService):
     for CSV parsing and validation logic reuse.
     """
 
-    def __init__(self, s3_path: str, storage_options: dict, ml_api_url: str, db_session) -> None:
+    def __init__(self, s3_path: str, storage_options: dict, ml_api_url: str, db_session: Session, run_id: str) -> None:
         """
         Initialize BatchService with S3 and database configuration.
 
@@ -76,6 +77,7 @@ class BatchService(BaseService):
         super().__init__(ml_api_url=ml_api_url, db_session=db_session)
         self.s3_path = s3_path
         self.storage_options = storage_options
+        self.run_id = run_id
 
     def read(self, batch_size: int) -> Iterator[tuple[list[dict], list[dict]]]:
         """
@@ -108,7 +110,11 @@ class BatchService(BaseService):
         Uses self.s3_path and self.storage_options configured during init.
         """
         return load_and_validate_transactions(
-            s3_path=self.s3_path, storage_options=self.storage_options, batch_size=batch_size
+            s3_path=self.s3_path,
+            storage_options=self.storage_options,
+            batch_size=batch_size,
+            run_id=self.run_id,
+            processing_type="batch",
         )
 
 
@@ -159,6 +165,7 @@ def main():
     api_batch_size = int(os.getenv("API_BATCH_SIZE", "100"))
     api_max_workers = int(os.getenv("API_MAX_WORKERS", "5"))
     db_row_batch_size = int(os.getenv("DB_ROW_BATCH_SIZE", "1000"))
+    run_id = os.getenv("BATCH_RUN_ID", "batch_unknown")
 
     # Read and validate CSV from MinIO
     s3_path = "s3://transactions/transactions_fr.csv"
@@ -171,7 +178,11 @@ def main():
     with get_db_session(os.environ["DATABASE_URL"]) as session:
         orchestrate_service(
             service=BatchService(
-                s3_path=s3_path, storage_options=storage_options, ml_api_url=ml_api_url, db_session=session
+                s3_path=s3_path,
+                storage_options=storage_options,
+                ml_api_url=ml_api_url,
+                db_session=session,
+                run_id=run_id,
             ),
             row_batch_size=row_batch_size,
             api_batch_size=api_batch_size,

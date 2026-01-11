@@ -82,6 +82,9 @@ with DAG(
     # Get connections and secrets securely
     def get_environment_vars(**context):
         """Retrieve secrets from Airflow Connections and add batch configuration."""
+        # Get Airflow run_id for lineage tracking
+        run_id = context["run_id"]
+
         # Get PostgreSQL connection
         postgres_conn = BaseHook.get_connection("postgres_transactions")
         database_url = postgres_conn.get_uri()
@@ -100,13 +103,14 @@ with DAG(
         ml_api_conn = BaseHook.get_connection("ml_api")
         ml_api_url = f"http://{ml_api_conn.host}:{ml_api_conn.port}"
 
-        # Combine secrets with batch configuration
+        # Combine secrets with batch configuration and lineage info
         env_vars = {
             "DATABASE_URL": database_url,
             "ENDPOINT_URL": endpoint_url,
             "KEY": minio_key,
             "SECRET": minio_secret,
             "ML_API_URL": ml_api_url,
+            "BATCH_RUN_ID": run_id,  # For lineage tracking
         }
         env_vars.update(BATCH_CONFIG)
 

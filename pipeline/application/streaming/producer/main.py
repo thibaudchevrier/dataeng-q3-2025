@@ -172,12 +172,15 @@ async def main():
     interval = float(os.getenv("PRODUCE_INTERVAL", "0.5"))  # Default: 0.5 second
     min_records = int(os.getenv("MIN_RECORDS_PER_BATCH", "1"))
     max_records = int(os.getenv("MAX_RECORDS_PER_BATCH", "10"))
+    run_id = os.getenv("PRODUCER_RUN_ID", "producer_unknown")
 
     valid_transactions, invalid_transactions = next(
         load_and_validate_transactions(
             s3_path=s3_path,
             storage_options=storage_options,
             batch_size=10000,  # Load one at a time for sampling
+            run_id=run_id,
+            processing_type="streaming",
         )
     )
 

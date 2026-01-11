@@ -257,6 +257,7 @@ services:
       PRODUCE_INTERVAL: "0.5"  # Faster interval: every 0.5 second
       MIN_RECORDS_PER_BATCH: "1"
       MAX_RECORDS_PER_BATCH: "10"
+      PRODUCER_RUN_ID: streaming-producer-1
     networks:
       - ml-network
     depends_on:
@@ -283,6 +284,7 @@ services:
       PRODUCE_INTERVAL: "1.0"  # Slower interval: every 1 second
       MIN_RECORDS_PER_BATCH: "5"  # Larger batches: 5-20 records
       MAX_RECORDS_PER_BATCH: "20"
+      PRODUCER_RUN_ID: streaming-producer-2
     networks:
       - ml-network
     depends_on:

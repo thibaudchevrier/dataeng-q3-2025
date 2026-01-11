@@ -16,12 +16,15 @@ from core.data_validation import validate_transaction_records
 logger = logging.getLogger(__name__)
 
 
-def __validate_transaction_dataframe(df: pl.DataFrame) -> pl.DataFrame:
+def __validate_transaction_dataframe(df: pl.DataFrame, run_id: str, processing_type: str) -> pl.DataFrame:
     # Check for required columns
     required_cols = {"id", "description", "amount", "timestamp", "merchant", "operation_type", "side"}
     missing = required_cols - set(df.columns)
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
+
+    # Add lineage tracking columns
+    df = df.with_columns([pl.lit(run_id).alias("run_id"), pl.lit(processing_type).alias("processing_type")])
 
     # Check for null values
     null_counts = df.null_count()
@@ -34,7 +37,7 @@ def __validate_transaction_dataframe(df: pl.DataFrame) -> pl.DataFrame:
 
 
 def load_and_validate_transactions(
-    s3_path: str, storage_options: dict, batch_size: int = 100
+    s3_path: str, storage_options: dict, run_id: str, processing_type: str, batch_size: int = 100
 ) -> Iterator[tuple[list[dict], list[dict]]]:
     """
     Load transactions from S3/MinIO and yield validated batches.
@@ -75,5 +78,7 @@ def load_and_validate_transactions(
 
     logger.info(f"Loaded {len(df)} raw transactions from CSV")
 
-    for sub_df in __validate_transaction_dataframe(df).iter_slices(n_rows=batch_size):
+    for sub_df in __validate_transaction_dataframe(df, run_id=run_id, processing_type=processing_type).iter_slices(
+        n_rows=batch_size
+    ):
         yield validate_transaction_records(sub_df.to_dicts())
