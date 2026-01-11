@@ -13,7 +13,7 @@ class Transaction(BaseModel):
     description: str
     amount: float
     timestamp: str  # Will be converted to datetime
-    merchant: str
+    merchant: str | None
     operation_type: str
     side: str
     
