@@ -99,6 +99,49 @@ def get_db_session(database_url: str):
         logger.info("Database connection closed")
 
 
+@contextmanager
+def db_transaction(session: Session):
+    """
+    Context manager for database transaction with automatic commit/rollback.
+
+    This context manager provides transaction boundaries for an existing
+    database session, allowing fine-grained control over when transactions
+    are committed in long-running processes.
+
+    Parameters
+    ----------
+    session : Session
+        Existing SQLAlchemy session object.
+
+    Yields
+    ------
+    Session
+        The same session object for use within the transaction.
+
+    Notes
+    -----
+    Automatically commits on success and rolls back on error.
+    Does not close the session - that remains the responsibility
+    of the session owner (e.g., get_db_session context manager).
+
+    Examples
+    --------
+    >>> with get_db_session(url) as session:
+    ...     while True:  # Long-running process
+    ...         with db_transaction(session):
+    ...             bulk_insert_transactions(session, batch)
+    ...         # Transaction committed, session still open
+    """
+    try:
+        yield session
+        session.commit()
+        logger.debug("Transaction committed")
+    except Exception as exc:
+        session.rollback()
+        logger.error(f"Transaction rolled back due to error: {exc}")
+        raise
+
+
 @retry_with_backoff(max_retries=int(os.getenv("MAX_RETRIES", "3")), initial_delay=1.0)
 def __bulk_insert_transactions(session: Session, transactions: list[dict]):
     """

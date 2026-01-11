@@ -17,7 +17,7 @@ from confluent_kafka import Consumer
 from sqlalchemy.orm import Session
 
 from core import orchestrate_service, validate_transaction_records
-from infrastructure import BaseService, get_db_session
+from infrastructure import BaseService, db_transaction, get_db_session
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -270,8 +270,6 @@ def main():
     topic = os.getenv("KAFKA_TOPIC", "transactions")
     ml_api_url = os.getenv("ML_API_URL", "http://localhost:8000")
 
-    os.environ["DATABASE_URL"] = "postgresql://qonto:qonto_password@localhost:5432/transactions"
-
     message_batch_size = int(os.getenv("MESSAGE_BATCH_SIZE", "50"))
     api_batch_size = int(os.getenv("API_BATCH_SIZE", "10"))
     api_max_workers = int(os.getenv("API_MAX_WORKERS", "5"))
@@ -301,15 +299,17 @@ def main():
             try:
                 logger.info("Starting continuous batch processing...")
                 while True:
-                    # Process one batch window
-                    processed, failed, invalid = orchestrate_service(
-                        service=service,
-                        row_batch_size=message_batch_size,
-                        api_batch_size=api_batch_size,
-                        api_max_workers=api_max_workers,
-                        db_row_batch_size=db_row_batch_size,
-                    )
+                    # Process one batch window within a transaction
+                    with db_transaction(session):
+                        processed, failed, invalid = orchestrate_service(
+                            service=service,
+                            row_batch_size=message_batch_size,
+                            api_batch_size=api_batch_size,
+                            api_max_workers=api_max_workers,
+                            db_row_batch_size=db_row_batch_size,
+                        )
 
+                    # Update totals after transaction commits
                     total_processed += processed
                     total_failed += len(failed)
                     total_invalid += len(invalid)

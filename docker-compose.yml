@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   postgres:
     image: postgres:15-alpine
@@ -177,6 +175,7 @@ services:
       "
 
   batch:
+    profiles: ["batch", "all"]
     build:
       context: ./pipeline
       dockerfile: batch/Dockerfile
@@ -192,6 +191,8 @@ services:
     depends_on:
       flyway:
         condition: service_completed_successfully
+      adminer:
+        condition: service_started
       minio-init:
         condition: service_completed_successfully
       ml-api:
@@ -200,6 +201,7 @@ services:
     # restart: "no"
 
   streaming-producer-1:
+    profiles: ["streaming", "all"]
     build:
       context: ./pipeline
       dockerfile: streaming/producer/Dockerfile
@@ -225,6 +227,7 @@ services:
     restart: unless-stopped
 
   streaming-producer-2:
+    profiles: ["streaming", "all"]
     build:
       context: ./pipeline
       dockerfile: streaming/producer/Dockerfile
@@ -246,6 +249,38 @@ services:
       kafka-init:
         condition: service_completed_successfully
       minio-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  streaming-consumer:
+    profiles: ["streaming", "all"]
+    build:
+      context: ./pipeline
+      dockerfile: streaming/consumer/Dockerfile
+    container_name: streaming-consumer
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+      KAFKA_CONSUMER_GROUP: transaction-consumer-group
+      KAFKA_TOPIC: transactions
+      ML_API_URL: http://ml-api:8000
+      DATABASE_URL: postgresql://qonto:qonto_password@postgres:5432/transactions
+      MESSAGE_BATCH_SIZE: "50"
+      API_BATCH_SIZE: "10"
+      API_MAX_WORKERS: "5"
+      DB_ROW_BATCH_SIZE: "50"
+      BUFFER_TIMEOUT: "5.0"
+    networks:
+      - ml-network
+    depends_on:
+      flyway:
+        condition: service_completed_successfully
+      adminer:
+        condition: service_started
+      ml-api:
+        condition: service_started
+      kafka-ui:
+        condition: service_healthy
+      kafka-init:
         condition: service_completed_successfully
     restart: unless-stopped
 

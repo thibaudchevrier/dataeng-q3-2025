@@ -9,8 +9,15 @@ This package provides core infrastructure components including:
 """
 
 from .api import predict_batch
-from .database import db_write_results, get_db_session
+from .database import db_transaction, db_write_results, get_db_session
 from .generator import load_and_validate_transactions
 from .service import BaseService
 
-__all__ = ["predict_batch", "db_write_results", "get_db_session", "load_and_validate_transactions", "BaseService"]
+__all__ = [
+    "predict_batch",
+    "db_write_results",
+    "get_db_session",
+    "db_transaction",
+    "load_and_validate_transactions",
+    "BaseService",
+]
