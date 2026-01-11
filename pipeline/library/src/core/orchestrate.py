@@ -6,25 +6,27 @@ with parallel API calls, error handling, and bulk database operations.
 Coordinates data flow between validation, prediction, and persistence layers.
 """
 
-from concurrent.futures import ThreadPoolExecutor
 import functools
-from .protocol import ServiceProtocol
 import logging
+from concurrent.futures import ThreadPoolExecutor
+
+from .protocol import ServiceProtocol
 
 logger = logging.getLogger(__name__)
 
 
-
-def orchestrate_service(service: ServiceProtocol, row_batch_size: int, api_batch_size: int, api_max_workers: int, db_row_batch_size: int) -> tuple[int, list[dict], list[dict]]:
+def orchestrate_service(
+    service: ServiceProtocol, row_batch_size: int, api_batch_size: int, api_max_workers: int, db_row_batch_size: int
+) -> tuple[int, list[dict], list[dict]]:
     """
     Orchestrate batch processing of transactions through the pipeline.
-    
+
     This function coordinates the entire batch processing workflow:
     - Loading and validating transactions in batches
     - Parallel API calls for fraud predictions
     - Bulk database writes for results
     - Error tracking and reporting
-    
+
     Parameters
     ----------
     service : ServiceProtocol
@@ -37,7 +39,7 @@ def orchestrate_service(service: ServiceProtocol, row_batch_size: int, api_batch
         Maximum number of parallel workers for API calls.
     db_row_batch_size : int
         Threshold for bulk database writes.
-        
+
     Returns
     -------
     tuple[int, list[dict], list[dict]]
@@ -45,14 +47,13 @@ def orchestrate_service(service: ServiceProtocol, row_batch_size: int, api_batch
         - Total number of successfully processed transactions
         - List of failed transactions (after retries)
         - List of invalid transactions (validation failures)
-        
+
     Notes
     -----
     Uses ThreadPoolExecutor for parallel API calls within each batch.
     Automatically handles retries via service.predict decorator.
     Performs bulk database writes when threshold is reached.
     """
-
     total_processed = 0
     all_predictions = []
     all_valid_transactions = []
@@ -61,31 +62,36 @@ def orchestrate_service(service: ServiceProtocol, row_batch_size: int, api_batch
 
     # Load and validate transactions - returns generator and invalid transactions
     for batch_id, (valid_transactions, invalid_transactions) in enumerate(service.read(row_batch_size)):
-
         # Log invalid transactions
         if invalid_transactions:
             all_invalid_transactions.extend(invalid_transactions)
             logger.error(f"Batch {batch_id}: Found {len(invalid_transactions)} invalid transactions during validation")
             for error in invalid_transactions[:5]:  # Show first 5
                 logger.error(f"  - {error}")
-        
+
         if not valid_transactions:
             logger.warning(f"Batch {batch_id}: No valid transactions to process")
             continue
-        
-        logger.info(f"Batch {batch_id}: Processing {len(valid_transactions)} transactions with {api_max_workers} parallel workers, API batch size: {api_batch_size}")
-        
+
+        logger.info(
+            f"Batch {batch_id}: Processing {len(valid_transactions)} transactions "
+            f"with {api_max_workers} parallel workers, API batch size: {api_batch_size}"
+        )
+
         # Process API batches in parallel using ThreadPoolExecutor (INSIDE the loop)
         with ThreadPoolExecutor(max_workers=api_max_workers) as executor:
             # Map predict_batch function over API batches in parallel
             results = executor.map(
-                lambda args: functools.partial(service.predict)(args[1]), 
-                enumerate((valid_transactions[i:i + api_batch_size] for i in range(0, len(valid_transactions), api_batch_size)))
+                lambda args: functools.partial(service.predict)(args[1]),
+                enumerate(
+                    valid_transactions[i : i + api_batch_size]
+                    for i in range(0, len(valid_transactions), api_batch_size)
+                ),
             )
-            
+
             for result in results:
                 transactions, predictions = result
-                
+
                 if predictions:
                     all_valid_transactions.extend(transactions)
                     all_predictions.extend(predictions)
@@ -98,19 +104,22 @@ def orchestrate_service(service: ServiceProtocol, row_batch_size: int, api_batch
                     # Write results to database in bulk
                     service.bulk_write(all_valid_transactions, all_predictions)
 
-        logger.info(f"Batch {batch_id}: Completed. Total progress: {total_processed}/{total_processed + len(failed_transactions)} successful")
+        logger.info(
+            f"Batch {batch_id}: Completed. Total progress: {total_processed}/"
+            f"{total_processed + len(failed_transactions)} successful"
+        )
 
     service.bulk_write(all_valid_transactions, all_predictions)
 
     # Final summary after ALL batches processed (outside context manager)
     logger.info(f"Batch pipeline completed - {total_processed} predictions received")
-    
+
     if failed_transactions:
         logger.error(f"FAILED: {len(failed_transactions)} transactions failed after all retries")
-    
+
     if all_invalid_transactions:
         logger.error(f"INVALID: {len(all_invalid_transactions)} transactions failed validation")
-    
+
     if not failed_transactions and not all_invalid_transactions:
         logger.info("SUCCESS: All transactions processed successfully")
 

@@ -1,0 +1,18 @@
+# See https://pre-commit.com/hooks.html for more hooks
+# Skip with git commit -a -m "..." --no-verify
+repos:
+  - repo: local
+    hooks:
+      - id: linter-fix
+        verbose: true
+        pass_filenames: false
+        name: format
+        entry: bash -c 'cd "$(git rev-parse --show-toplevel)/pipeline/library/src" && uv run poe linter-fix'
+        language: system
+        fail_fast: true
+      - id: poe-check
+        verbose: true
+        pass_filenames: false
+        name: check
+        entry: bash -c 'cd "$(git rev-parse --show-toplevel)/pipeline/library/src" && uv run poe check'
+        language: system

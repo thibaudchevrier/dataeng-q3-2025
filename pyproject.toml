@@ -1,0 +1,104 @@
+[project]
+name = "dataeng-q3-2025"
+version = "0.1.0"
+description = "Data Engineering Q3 2025 - Fraud Detection Pipeline"
+readme = "README.md"
+requires-python = ">=3.12"
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+    "poethepoet>=0.32.1",
+]
+
+[tool.uv]
+cache-dir = "./.cache"
+default-groups = ["dev"]
+package = false
+
+[tool.uv.workspace]
+members = [
+    "pipeline/library",
+    "pipeline/batch",
+    "pipeline/streaming/producer",
+    "pipeline/streaming/consumer",
+]
+
+# Global Poe tasks that orchestrate across all modules
+[tool.poe.tasks.format-all]
+help = "Format all pipeline modules"
+shell = """
+for module in pipeline/library pipeline/batch pipeline/streaming/producer pipeline/streaming/consumer; do
+    echo "🎨 Formatting $module..."
+    cd $module && uv run poe linter-fix && cd - > /dev/null || exit 1
+done
+echo "✅ All modules formatted successfully"
+"""
+
+[tool.poe.tasks.lint-all]
+help = "Run linting on all pipeline modules"
+shell = """
+for module in pipeline/library pipeline/batch pipeline/streaming/producer pipeline/streaming/consumer; do
+    echo "🔍 Linting $module..."
+    cd $module && uv run poe lint && cd - > /dev/null || exit 1
+done
+echo "✅ All modules linted successfully"
+"""
+
+[tool.poe.tasks.test-all]
+help = "Run tests on all pipeline modules"
+shell = """
+for module in pipeline/library pipeline/batch pipeline/streaming/producer pipeline/streaming/consumer; do
+    echo "🧪 Testing $module..."
+    cd $module && uv run poe test && cd - > /dev/null || exit 1
+done
+echo "✅ All module tests passed"
+"""
+
+[tool.poe.tasks.types-all]
+help = "Run type checking on all pipeline modules"
+shell = """
+for module in pipeline/library pipeline/batch pipeline/streaming/producer pipeline/streaming/consumer; do
+    echo "🔎 Type checking $module..."
+    cd $module && uv run poe types && cd - > /dev/null || exit 1
+done
+echo "✅ All modules type checked successfully"
+"""
+
+[tool.poe.tasks.check-all]
+help = "Run all checks on all pipeline modules"
+sequence = ["format-all", "types-all", "lint-all"]
+
+[tool.poe.tasks.clean-all]
+help = "Clean all pipeline modules"
+shell = """
+for module in pipeline/library pipeline/batch pipeline/streaming/producer pipeline/streaming/consumer; do
+    echo "🧹 Cleaning $module..."
+    cd $module && uv run poe clean && cd - > /dev/null || exit 1
+done
+echo "✅ All modules cleaned"
+"""
+
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers"
+testpaths = [
+    "pipeline/library/tests",
+    "pipeline/batch/tests",
+    "pipeline/streaming/producer/tests",
+    "pipeline/streaming/consumer/tests",
+]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+markers = [
+    "integration: marks tests as integration tests",
+    "slow: marks tests as slow running",
+]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "$version"
+version_scheme = "pep440"
+version_provider = "pep621"
+update_changelog_on_bump = true
+major_version_zero = false
+

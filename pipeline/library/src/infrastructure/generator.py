@@ -7,8 +7,10 @@ processing in the pipeline.
 """
 
 import logging
-from typing import Iterator
+from collections.abc import Iterator
+
 import polars as pl
+
 from core.data_validation import validate_transaction_records
 
 logger = logging.getLogger(__name__)
@@ -16,11 +18,11 @@ logger = logging.getLogger(__name__)
 
 def __validate_transaction_dataframe(df: pl.DataFrame) -> pl.DataFrame:
     # Check for required columns
-    required_cols = {'id', 'description', 'amount', 'timestamp', 'merchant', 'operation_type', 'side'}
+    required_cols = {"id", "description", "amount", "timestamp", "merchant", "operation_type", "side"}
     missing = required_cols - set(df.columns)
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
-    
+
     # Check for null values
     null_counts = df.null_count()
     total_nulls = sum([null_counts[col][0] for col in null_counts.columns])
@@ -32,52 +34,45 @@ def __validate_transaction_dataframe(df: pl.DataFrame) -> pl.DataFrame:
 
 
 def load_and_validate_transactions(
-    s3_path: str,
-    storage_options: dict,
-    batch_size: int = 100
+    s3_path: str, storage_options: dict, batch_size: int = 100
 ) -> Iterator[tuple[list[dict], list[dict]]]:
     """
     Load transactions from S3/MinIO and yield validated batches.
-    
-    This function reads CSV data from S3, validates each transaction 
-    with Pydantic (auto-assigning UUIDs), and yields batches of 
+
+    This function reads CSV data from S3, validates each transaction
+    with Pydantic (auto-assigning UUIDs), and yields batches of
     validated transactions.
-    
+
     Parameters
     ----------
     s3_path : str
         S3 path to CSV file (e.g., 's3://bucket/file.csv').
     storage_options : dict
-        S3/MinIO credentials containing 'key', 'secret', and 
+        S3/MinIO credentials containing 'key', 'secret', and
         'client_kwargs' with 'endpoint_url'.
     batch_size : int, optional
         Number of transactions per batch, by default 100.
-        
+
     Yields
     ------
     tuple[list[dict], list[dict]]
         Tuple of (validated_transactions, invalid_transactions).
-        
+
     Raises
     ------
     ValueError
         If required columns are missing from the CSV.
-        
+
     Notes
     -----
-    Invalid transactions are collected and yielded alongside 
+    Invalid transactions are collected and yielded alongside
     valid transactions for error reporting.
     """
     logger.info(f"Reading data from {s3_path}")
-    
+
     # Read CSV with Polars
-    df = pl.read_csv(
-        s3_path,
-        separator=";",
-        decimal_comma=True,
-        storage_options=storage_options
-    )
-    
+    df = pl.read_csv(s3_path, separator=";", decimal_comma=True, storage_options=storage_options)
+
     logger.info(f"Loaded {len(df)} raw transactions from CSV")
 
     for sub_df in __validate_transaction_dataframe(df).iter_slices(n_rows=batch_size):

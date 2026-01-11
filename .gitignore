@@ -3,6 +3,7 @@
 
 # Virtual environment
 .venv
+.cache
 .virtualenv
 
 # Misc

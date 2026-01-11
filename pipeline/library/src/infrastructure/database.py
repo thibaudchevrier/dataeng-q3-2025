@@ -5,15 +5,18 @@ This module provides SQLAlchemy models for transactions and predictions,
 session management utilities, and bulk insert/upsert operations with
 retry logic for resilient database interactions.
 """
+
 import logging
-from contextlib import contextmanager
-from sqlalchemy import create_engine, Column, String, Float, DateTime, Integer, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship, Session
-from sqlalchemy.dialects.postgresql import insert
-from datetime import datetime
-from .utils import _retry_with_backoff
 import os
+from contextlib import contextmanager
+from datetime import datetime
+
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, create_engine
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import Session, relationship, sessionmaker
+
+from .utils import _retry_with_backoff
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +24,10 @@ Base = declarative_base()
 
 
 class Transaction(Base):
-    """Transaction table model"""
-    __tablename__ = 'transactions'
-    
+    """Transaction table model."""
+
+    __tablename__ = "transactions"
+
     id = Column(String, primary_key=True)  # UUID from Pydantic
     description = Column(String, nullable=False)
     amount = Column(Float, nullable=False)
@@ -31,22 +35,23 @@ class Transaction(Base):
     merchant = Column(String, nullable=False)
     operation_type = Column(String, nullable=False)
     side = Column(String, nullable=False)
-    
+
     # Relationship to predictions
     predictions = relationship("Prediction", back_populates="transaction")
 
 
 class Prediction(Base):
-    """Prediction table model"""
-    __tablename__ = 'predictions'
-    
+    """Prediction table model."""
+
+    __tablename__ = "predictions"
+
     id = Column(Integer, primary_key=True, autoincrement=True)
-    transaction_id = Column(String, ForeignKey('transactions.id'), unique=True, nullable=False)
+    transaction_id = Column(String, ForeignKey("transactions.id"), unique=True, nullable=False)
     category = Column(String, nullable=False)
     confidence_score = Column(Float, default=1.0)
-    model_version = Column(String, default='v1.0')
+    model_version = Column(String, default="v1.0")
     predicted_at = Column(DateTime, default=datetime.utcnow)
-    
+
     # Relationship to transaction
     transaction = relationship("Transaction", back_populates="predictions")
 
@@ -55,36 +60,32 @@ class Prediction(Base):
 def get_db_session(database_url: str):
     """
     Context manager for database session.
-    
+
     Parameters
     ----------
     database_url : str
-        PostgreSQL connection URL 
+        PostgreSQL connection URL
         (e.g., 'postgresql://user:pass@host:port/dbname').
-        
+
     Yields
     ------
     Session
         SQLAlchemy session object for database operations.
-        
+
     Notes
     -----
-    Automatically commits on success, rolls back on error, 
+    Automatically commits on success, rolls back on error,
     and closes the session in all cases.
-    
+
     Examples
     --------
     >>> with get_db_session(url) as session:
     ...     bulk_insert_transactions(session, transactions)
     """
-    engine = create_engine(
-        database_url,
-        pool_pre_ping=True,
-        echo=False
-    )
+    engine = create_engine(database_url, pool_pre_ping=True, echo=False)
     Session = sessionmaker(bind=engine)
     session = Session()
-    
+
     try:
         logger.info("Database connection established")
         yield session
@@ -98,47 +99,47 @@ def get_db_session(database_url: str):
         logger.info("Database connection closed")
 
 
-@_retry_with_backoff(max_retries=int(os.getenv('MAX_RETRIES', '3')), initial_delay=1.0)
+@_retry_with_backoff(max_retries=int(os.getenv("MAX_RETRIES", "3")), initial_delay=1.0)
 def __bulk_insert_transactions(session: Session, transactions: list[dict]):
     """
     Insert transactions with ON CONFLICT DO NOTHING (idempotent).
-    
+
     Parameters
     ----------
     session : Session
         SQLAlchemy session object.
     transactions : list[dict]
-        List of transaction dictionaries with keys matching 
+        List of transaction dictionaries with keys matching
         Transaction model columns.
-        
+
     Notes
     -----
-    Re-running with the same transaction IDs won't create 
+    Re-running with the same transaction IDs won't create
     duplicates due to ON CONFLICT DO NOTHING clause.
     """
     if not transactions:
         return
-    
+
     stmt = insert(Transaction).values(transactions)
-    stmt = stmt.on_conflict_do_nothing(index_elements=['id'])
-    
+    stmt = stmt.on_conflict_do_nothing(index_elements=["id"])
+
     session.execute(stmt)
     logger.info(f"Inserted {len(transactions)} transactions (skipped duplicates)")
 
 
-@_retry_with_backoff(max_retries=int(os.getenv('MAX_RETRIES', '3')), initial_delay=1.0)
+@_retry_with_backoff(max_retries=int(os.getenv("MAX_RETRIES", "3")), initial_delay=1.0)
 def __bulk_upsert_predictions(session: Session, predictions: list[dict]):
     """
     UPSERT predictions: insert new ones, update existing ones.
-    
+
     Parameters
     ----------
     session : Session
         SQLAlchemy session object.
     predictions : list[dict]
-        List of prediction dictionaries with keys matching 
+        List of prediction dictionaries with keys matching
         Prediction model columns.
-        
+
     Notes
     -----
     If transaction_id exists, updates with latest prediction.
@@ -146,23 +147,23 @@ def __bulk_upsert_predictions(session: Session, predictions: list[dict]):
     """
     if not predictions:
         return
-    
+
     # Prepare data - ensure transaction_id is a string (UUID)
     for pred in predictions:
-        if 'transaction_id' in pred and not isinstance(pred['transaction_id'], str):
-            pred['transaction_id'] = str(pred['transaction_id'])
-    
+        if "transaction_id" in pred and not isinstance(pred["transaction_id"], str):
+            pred["transaction_id"] = str(pred["transaction_id"])
+
     stmt = insert(Prediction).values(predictions)
     stmt = stmt.on_conflict_do_update(
-        index_elements=['transaction_id'],
+        index_elements=["transaction_id"],
         set_={
-            'category': stmt.excluded.category,
-            'confidence_score': stmt.excluded.confidence_score,
-            'model_version': stmt.excluded.model_version,
-            'predicted_at': stmt.excluded.predicted_at
-        }
+            "category": stmt.excluded.category,
+            "confidence_score": stmt.excluded.confidence_score,
+            "model_version": stmt.excluded.model_version,
+            "predicted_at": stmt.excluded.predicted_at,
+        },
     )
-    
+
     session.execute(stmt)
     logger.info(f"Upserted {len(predictions)} predictions")
 
@@ -170,7 +171,7 @@ def __bulk_upsert_predictions(session: Session, predictions: list[dict]):
 def db_write_results(session: Session, all_valid_transactions: list[dict], all_predictions: list[dict]):
     """
     Write valid transactions and predictions to the database.
-    
+
     Parameters
     ----------
     session : Session
@@ -179,7 +180,7 @@ def db_write_results(session: Session, all_valid_transactions: list[dict], all_p
         List of validated transaction dictionaries to persist.
     all_predictions : list[dict]
         List of prediction dictionaries to persist.
-        
+
     Notes
     -----
     Clears the input lists after successful persistence.
@@ -191,7 +192,7 @@ def db_write_results(session: Session, all_valid_transactions: list[dict], all_p
         __bulk_insert_transactions(session, all_valid_transactions)
         logger.info(f"Persisted {len(all_valid_transactions)} transactions to database")
         all_valid_transactions.clear()
-    
+
     if all_predictions:
         # Persist predictions to database (upsert)
         __bulk_upsert_predictions(session, all_predictions)

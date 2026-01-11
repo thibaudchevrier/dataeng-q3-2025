@@ -15,6 +15,29 @@ dependencies = [
     "sqlalchemy>=2.0.45",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest >= 8", # pytest: simple powerful testing with Python
+    "pytest-cov >= 5", # Pytest plugin for measuring coverage.
+    "xdoctest ~=1.2.0", # A rewrite of the builtin doctest module
+    "coverage[toml] >= 7.6.10",
+    "poethepoet >= 0.32.1"
+]
+
+docs = [
+    "mkdocs~= 1.6",
+    "mkdocs-include-markdown-plugin >= 7.1.2",
+    "mkdocstrings[python] ~= 0.27",
+    "mkdocs-material == 9.*",
+    "mkdocs-include-markdown-plugin ~= 7.1.2"
+]
+
+lint = [
+    "pre-commit>=4.2.0",
+    "pyright>=1.1.391",
+    "ruff>=0.9.1",
+    "pydocstyle>=6.3.0",
+]
 
 [build-system]
 requires = ["uv_build>=0.9.23,<0.10.0"]
@@ -22,3 +45,162 @@ build-backend = "uv_build"
 
 [tool.uv.build-backend]
 module-name = ["core", "infrastructure"]
+
+[tool.uv]
+package = true
+cache-dir = "./.cache"
+default-groups = ["dev", "docs", "lint"]
+
+[tool.coverage.paths]
+source = ["src/core", "src/infrastructure"]
+
+[tool.coverage.run]
+# see https://coverage.readthedocs.io/en/coverage-5.0.3/config.html
+branch = true
+data_file = ".cache/coverage"
+source = ["src/core", "src/infrastructure"]
+omit = ["tests/*", ".venv/*", "*/__main__.py"]
+
+[tool.coverage.report]
+# see https://coverage.readthedocs.io/en/coverage-5.0.3/config.html
+exclude_lines = ["pragma: no cover", "raise NotImplementedError"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers --pdbcls=tests:Debugger -r sxX --cov=src --cov-report=html --cov-report=term-missing:skip-covered"
+cache_dir = ".cache"
+
+[tool.ruff]
+cache-dir = ".cache/ruff"
+line-length = 120
+indent-width = 4
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = true
+docstring-code-line-length = "dynamic"
+
+
+[tool.pyright]
+include = ["src/core", "src/infrastructure"]
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "src/*/experimental",
+    "src/*/typestubs"
+]
+ignore = ["tests"]
+defineConstant = { DEBUG = true }
+reportMissingImports = true
+reportMissingTypeStubs = true
+
+pythonVersion = "3.13"
+pythonPlatform = "Linux"
+
+[tool.poe.tasks._build]
+help = "Build project"
+shell = """
+rm -rf ./dist
+uv build --sdist --wheel
+"""
+
+[tool.poe.tasks.types]
+help = "Run the type checker"
+cmd  = "uv run pyright"
+
+
+[tool.poe.tasks.test]
+help = "Run unit tests"
+shell = """
+if test -e .cache/v/cache/lastfailed; then uv run pytest tests --last-failed --exitfirst; fi &
+rm -rf .cache/v/cache/lastfailed &
+uv run pytest
+"""
+
+[tool.poe.tasks.lint]
+help = "Run all checks on the code base"
+shell = """
+uv run pydocstyle
+uv run ruff check --fix .
+uv run ruff format --check .
+uv run pyright
+"""
+
+[tool.poe.tasks.linter-fix]
+help ="Run Linter in fix mode."
+shell = """
+uv run ruff format .
+uv run ruff check --select I --fix .
+"""
+
+[tool.poe.tasks.build]
+help = "Build module"
+sequence = ["lint", "test", "_build"]
+
+
+[tool.poe.tasks.style]
+help = "Validate black code style"
+shell = """
+uv run ruff check --select I --fix
+uv run ruff format .
+"""
+
+
+[tool.poe.tasks.check]
+help     = "Run all checks on the code base"
+sequence = ["style", "types", "lint"]
+
+
+[tool.poe.tasks.publish]
+help = "Publish module"
+cmd = """
+uv publish --index aws-codeartifact
+"""
+
+[tool.poe.tasks.docs]
+help = "Build site documentation"
+shell = """
+git fetch origin gh-pages &
+uv run mkdocs build --clean
+"""
+
+[tool.poe.tasks.docs-publish]
+help = "Publish site documentation"
+cmd = """
+uv run mkdocs gh-deploy  --clean
+"""
+
+[tool.poe.tasks.clean]
+help = "Remove all generated and temporary files"
+shell  = """
+uv cache clean
+rm -rf *.spec dist build .eggs *.egg-info .install .cache .coverage htmlcov .mypy_cache .pytest_cache site .ruff_cache &
+find first_algo tests -type d -name '__pycache__' -exec rm -rf {} +
+"""
+
+[tool.poe.tasks.requirements]
+help = "Generate requirements.txt"
+cmd = "uv pip compile pyproject.toml -o requirements.txt "
+capture_stdout = "requirements.txt"

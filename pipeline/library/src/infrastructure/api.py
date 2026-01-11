@@ -5,19 +5,21 @@ This module provides functions for sending transaction batches to the ML API
 for fraud prediction with automatic retry logic and exponential backoff.
 """
 
-import requests
 import logging
-from .utils import _retry_with_backoff
 import os
+
+import requests
+
+from .utils import _retry_with_backoff
 
 logger = logging.getLogger(__name__)
 
 
-@_retry_with_backoff(max_retries=int(os.getenv('MAX_RETRIES', '3')), initial_delay=1.0)
+@_retry_with_backoff(max_retries=int(os.getenv("MAX_RETRIES", "3")), initial_delay=1.0)
 def predict_batch(transactions: list[dict], ml_api_url: str, batch_id: int = 0) -> tuple[list[dict], list[dict]]:
     """
     Send a batch of transactions to the ML API for prediction.
-    
+
     Parameters
     ----------
     transactions : list[dict]
@@ -26,22 +28,19 @@ def predict_batch(transactions: list[dict], ml_api_url: str, batch_id: int = 0) 
         ML API URL (e.g., 'http://ml-api:8000').
     batch_id : int, optional
         Batch identifier for logging, by default 0.
-        
+
     Returns
     -------
     tuple[list[dict], list[dict]]
         Tuple containing (predictions, transactions).
-        
+
     Raises
     ------
     requests.HTTPError
         If the API request fails or returns an error status.
     """
     response = requests.post(
-        f"{ml_api_url}/predict",
-        json=transactions,
-        headers={"Content-Type": "application/json"},
-        timeout=30
+        f"{ml_api_url}/predict", json=transactions, headers={"Content-Type": "application/json"}, timeout=30
     )
     response.raise_for_status()
     predictions = response.json()

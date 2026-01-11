@@ -5,18 +5,19 @@ This module defines Pydantic models for transactions and predictions,
 providing automatic validation, type checking, and UUID generation.
 """
 
-from pydantic import BaseModel, field_validator
 from datetime import datetime
 from uuid import uuid4
+
+from pydantic import BaseModel, field_validator
 
 
 class Transaction(BaseModel):
     """
     Transaction model with validation.
-    
+
     Used for both CSV/Kafka input (validates and assigns UUID).
     Ignores incoming 'id' field and always generates a new UUID.
-    
+
     Attributes
     ----------
     id : str
@@ -34,6 +35,7 @@ class Transaction(BaseModel):
     side : str
         Transaction side indicator.
     """
+
     id: str  # Will be replaced with UUID
     description: str
     amount: float
@@ -41,51 +43,51 @@ class Transaction(BaseModel):
     merchant: str | None
     operation_type: str
     side: str
-    
-    @field_validator('id', mode='before')
+
+    @field_validator("id", mode="before")
     @classmethod
     def replace_id_with_uuid(cls, _) -> str:
         """
         Replace incoming id with a fresh UUID.
-        
+
         Parameters
         ----------
         _ : Any
             Incoming id value (ignored).
-            
+
         Returns
         -------
         str
             Newly generated UUID string.
-            
+
         Notes
         -----
         Always generates a new UUID regardless of input value.
         Ensures unique transaction identifiers across all sources.
         """
         return str(uuid4())
-    
-    @field_validator('timestamp')
+
+    @field_validator("timestamp")
     @classmethod
     def parse_timestamp(cls, v: str) -> str:
         """
         Parse timestamp string to ISO format for database.
-        
+
         Parameters
         ----------
         v : str
             Timestamp string in various formats.
-            
+
         Returns
         -------
         str
             ISO format timestamp string.
-            
+
         Raises
         ------
         ValueError
             If timestamp format is not recognized.
-            
+
         Notes
         -----
         Supports formats: 'YYYY-MM-DD HH:MM:SS' and 'YYYY-MM-DDTHH:MM:SS'.
@@ -95,17 +97,18 @@ class Transaction(BaseModel):
             # Handle various timestamp formats
             try:
                 # Try parsing common formats
-                dt = datetime.strptime(v, '%Y-%m-%d %H:%M:%S')
+                dt = datetime.strptime(v, "%Y-%m-%d %H:%M:%S")
                 return dt.isoformat()
             except ValueError:
                 try:
-                    dt = datetime.strptime(v, '%Y-%m-%dT%H:%M:%S')
+                    dt = datetime.strptime(v, "%Y-%m-%dT%H:%M:%S")
                     return dt.isoformat()
-                except ValueError:
-                    raise ValueError(f'Invalid timestamp format: {v}')
+                except ValueError as exc:
+                    raise ValueError(f"Invalid timestamp format: {v}") from exc
         return v
-    
-    class Config:
-        # Allow extra fields for forward compatibility
-        extra = 'ignore'
 
+    class Config:
+        """Pydantic model configuration for Transaction class."""
+
+        # Allow extra fields for forward compatibility
+        extra = "ignore"
