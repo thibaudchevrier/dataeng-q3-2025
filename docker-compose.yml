@@ -200,13 +200,10 @@ services:
       AIRFLOW__CORE__EXECUTOR: SequentialExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: sqlite:////opt/airflow/airflow.db
       AIRFLOW__CORE__FERNET_KEY: ''
-      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'false'
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       # Enable standalone mode (webserver + scheduler in one)
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
-      # Airflow 3.x uses Simple Auth Manager - set credentials
-      _AIRFLOW_STANDALONE_ADMIN_USERNAME: admin
-      _AIRFLOW_STANDALONE_ADMIN_PASSWORD: airflow
       # Airflow Connections (format: AIRFLOW_CONN_{CONN_ID})
       AIRFLOW_CONN_POSTGRES_TRANSACTIONS: postgresql://qonto:qonto_password@postgres:5432/transactions
       AIRFLOW_CONN_MINIO_S3: http://minioadmin:minioadmin@minio:9000
@@ -222,6 +219,9 @@ services:
     command: >
       bash -c "
       airflow db migrate &&
+      mkdir -p /opt/airflow &&
+      echo '{\"admin\": \"airflow123\"}' > /opt/airflow/simple_auth_manager_passwords.json &&
+      echo '{\"admin\": \"airflow123\"}' > /opt/airflow/simple_auth_manager_passwords.json.generated &&
       airflow standalone
       "
     depends_on:
