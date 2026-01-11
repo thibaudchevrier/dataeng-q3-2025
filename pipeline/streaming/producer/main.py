@@ -1,0 +1,126 @@
+import asyncio
+import logging
+import os
+from contextlib import asynccontextmanager
+from confluent_kafka.aio import AIOProducer
+from infrastructure import load_and_validate_transactions
+import random
+import json
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def get_kafka_producer(bootstrap_servers: str):
+    """
+    Async context manager for Kafka AIOProducer.
+    
+    Args:
+        bootstrap_servers: Kafka bootstrap servers (e.g., "localhost:9092")
+        
+    Yields:
+        AIOProducer instance
+    """
+    producer = AIOProducer({"bootstrap.servers": bootstrap_servers})
+    try:
+        yield producer
+        # Flush any remaining buffered messages before shutdown
+        await producer.flush()
+    finally:
+        await producer.close()
+
+
+async def produce_messages(producer: AIOProducer, topic: str, interval: float, record_samples: list[dict], min_records: int = 1, max_records: int = 10):
+    """
+    Continuously produce messages at regular intervals.
+    
+    Args:
+        producer: AIOProducer instance
+        topic: Kafka topic name
+        interval: Time in seconds between messages
+        record_samples: List of transaction records to sample from
+        min_records: Minimum number of records to send per interval
+        max_records: Maximum number of records to send per interval
+    """
+    message_count = 0
+    
+    try:
+        while True:
+            # Randomly decide how many records to send this interval
+            num_records = random.randint(min_records, max_records)
+            
+            # Randomly sample that many records (with replacement)
+            samples = random.choices(record_samples, k=num_records)
+            
+            # Create tasks to send all sampled records in parallel
+            async def send_message(sample, msg_num):
+                try:
+                    # Produce message (no key - no transaction event ordering required)
+                    # Kafka will distribute messages round-robin across all partitions
+                    delivery_future = await producer.produce(topic, value=json.dumps(sample).encode('utf-8'))
+                    await delivery_future
+                    logger.debug(f"Produced message #{msg_num} to topic '{topic}'")
+                    return True
+                except Exception as e:
+                    logger.error(f"Failed to produce message #{msg_num}: {e}")
+                    return False
+            
+            # Send all messages in parallel
+            tasks = [send_message(sample, message_count + i + 1) for i, sample in enumerate(samples)]
+            results = await asyncio.gather(*tasks)
+            
+            # Update message count
+            successful = sum(results)
+            message_count += num_records
+            
+            logger.info(f"Batch complete: sent {successful}/{num_records} records")
+            
+            # Wait for the specified interval
+            await asyncio.sleep(interval)
+            
+    except asyncio.CancelledError:
+        logger.info(f"Producer stopped. Total messages sent: {message_count}")
+        raise
+
+
+async def main():
+    # Configuration
+    # Read and validate CSV from MinIO
+    s3_path = "s3://transactions/transactions_fr.csv"
+
+    storage_options = {
+        "key": os.environ['KEY'],
+        "secret": os.environ['SECRET'],
+        "client_kwargs": {
+            "endpoint_url": os.environ['ENDPOINT_URL']
+        }
+    }
+    bootstrap_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
+    topic = os.getenv('KAFKA_TOPIC', 'transactions')
+    interval = float(os.getenv('PRODUCE_INTERVAL', '0.5'))  # Default: 0.5 second
+    min_records = int(os.getenv('MIN_RECORDS_PER_BATCH', '1'))
+    max_records = int(os.getenv('MAX_RECORDS_PER_BATCH', '10'))
+
+    valid_transactions, invalid_transactions = next(load_and_validate_transactions(
+        s3_path=s3_path,
+        storage_options=storage_options,
+        batch_size=10000  # Load one at a time for sampling
+    ))
+
+    logger.info(f"Starting producer - Server: {bootstrap_servers}, Topic: {topic}, Interval: {interval}s")
+    logger.info(f"Records per batch: {min_records}-{max_records}, Total samples loaded: {len(valid_transactions)}")
+
+    if invalid_transactions:
+        logger.warning(f"Loaded {len(invalid_transactions)} invalid transactions during validation - these will be ignored for production")
+    
+    async with get_kafka_producer(bootstrap_servers) as producer:
+        await produce_messages(producer, topic, interval, valid_transactions, min_records, max_records)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

@@ -1,0 +1,14 @@
+[project]
+name = "producer"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "library",
+    "confluent-kafka>=2.1.0",
+]
+
+[tool.uv.sources]
+library = { path = "../../library" , editable = true }
+
