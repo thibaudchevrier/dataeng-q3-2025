@@ -2,7 +2,7 @@ import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from infrastructure import get_db_session, bulk_insert_transactions, bulk_upsert_predictions, load_and_validate_transactions, predict_batch
+from infrastructure import get_db_session, db_write_results, load_and_validate_transactions, predict_batch
 
 # Configure logging
 logging.basicConfig(
@@ -30,6 +30,7 @@ def main():
     row_batch_size = int(os.getenv('ROW_BATCH_SIZE', '5000'))
     api_batch_size = int(os.getenv('API_BATCH_SIZE', '100'))
     api_max_workers = int(os.getenv('API_MAX_WORKERS', '5'))
+    db_row_batch_size = int(os.getenv('DB_ROW_BATCH_SIZE', '1000'))
     
     # Read and validate CSV from MinIO
     s3_path = "s3://transactions/transactions_fr.csv"
@@ -44,6 +45,7 @@ def main():
     # Process validated batches with parallel workers
     total_processed = 0
     all_predictions = []
+    all_valid_transactions = []
     failed_transactions = []
     all_invalid_transactions = []  # Keep track of all invalid transactions
 
@@ -78,26 +80,24 @@ def main():
                 )
                 
                 for result in results:
-                    predictions, failed_batch = result
+                    transactions, predictions = result
                     
                     if predictions:
+                        all_valid_transactions.extend(transactions)
                         all_predictions.extend(predictions)
                         total_processed += len(predictions)
-                    
-                    if failed_batch:
-                        failed_transactions.extend(failed_batch)
-                        logger.warning(f"Batch {batch_id}: {len(failed_batch)} transactions added to failed queue")
+                    else:
+                        failed_transactions.extend(transactions)
+                        logger.warning(f"Batch {batch_id}: {len(transactions)} transactions added to failed queue")
+
+                    if len(all_predictions) >= db_row_batch_size or len(all_valid_transactions) >= db_row_batch_size:
+                        # Write results to database in bulk
+                        db_write_results(session, all_valid_transactions, all_predictions)
             
             logger.info(f"Batch {batch_id}: Completed. Total progress: {total_processed}/{total_processed + len(failed_transactions)} successful")
 
-            # Insert transactions to database (idempotent)
-            bulk_insert_transactions(session, valid_transactions)
-            
-            # Persist predictions to database (upsert)
-            if all_predictions:
-                bulk_upsert_predictions(session, all_predictions)
-                logger.info(f"Persisted {len(all_predictions)} predictions to database")
-                all_predictions = []  # Clear after writing
+        db_write_results(session, all_valid_transactions, all_predictions)
+
     
     # Final summary after ALL batches processed (outside context manager)
     logger.info(f"Batch pipeline completed - {total_processed} predictions received")
@@ -110,7 +110,6 @@ def main():
     
     if not failed_transactions and not all_invalid_transactions:
         logger.info("SUCCESS: All transactions processed successfully")
-
 
 
 

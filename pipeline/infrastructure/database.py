@@ -2,7 +2,6 @@
 Simple database utilities for PostgreSQL operations.
 """
 import logging
-from typing import List, Dict
 from contextlib import contextmanager
 from sqlalchemy import create_engine, Column, String, Float, DateTime, Integer, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
@@ -79,7 +78,7 @@ def get_db_session(database_url: str):
 
 
 @_retry_with_backoff(max_retries=int(os.getenv('MAX_RETRIES', '3')), initial_delay=1.0)
-def bulk_insert_transactions(session: Session, transactions: List[Dict]):
+def __bulk_insert_transactions(session: Session, transactions: list[dict]):
     """
     Insert transactions with ON CONFLICT DO NOTHING (idempotent).
     Re-running won't create duplicates.
@@ -95,7 +94,7 @@ def bulk_insert_transactions(session: Session, transactions: List[Dict]):
 
 
 @_retry_with_backoff(max_retries=int(os.getenv('MAX_RETRIES', '3')), initial_delay=1.0)
-def bulk_upsert_predictions(session: Session, predictions: List[Dict]):
+def __bulk_upsert_predictions(session: Session, predictions: list[dict]):
     """
     UPSERT predictions: insert new ones, update existing ones.
     If transaction_id exists, update with latest prediction.
@@ -121,3 +120,20 @@ def bulk_upsert_predictions(session: Session, predictions: List[Dict]):
     
     session.execute(stmt)
     logger.info(f"Upserted {len(predictions)} predictions")
+
+
+def db_write_results(session: Session, all_valid_transactions: list[dict], all_predictions: list[dict]):
+    """
+    Write valid transactions and predictions to the database.
+    """
+    if all_valid_transactions:
+        # Insert transactions to database (idempotent)
+        __bulk_insert_transactions(session, all_valid_transactions)
+        logger.info(f"Persisted {len(all_valid_transactions)} transactions to database")
+        all_valid_transactions.clear()
+    
+    if all_predictions:
+        # Persist predictions to database (upsert)
+        __bulk_upsert_predictions(session, all_predictions)
+        logger.info(f"Persisted {len(all_predictions)} predictions to database")
+        all_predictions.clear()

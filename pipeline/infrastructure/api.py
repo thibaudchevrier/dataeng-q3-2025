@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 @_retry_with_backoff(max_retries=int(os.getenv('MAX_RETRIES', '3')), initial_delay=1.0)
-def predict_batch(transactions: list[dict], batch_id: int) -> list[dict]:
+def predict_batch(transactions: list[dict], batch_id: int) -> tuple[list[dict], list[dict]]:
     """
     Send a batch of transactions to the ML API for prediction.
     
@@ -28,4 +28,4 @@ def predict_batch(transactions: list[dict], batch_id: int) -> list[dict]:
     response.raise_for_status()
     predictions = response.json()
     logger.debug(f"Batch {batch_id}: Successfully processed {len(predictions)} transactions")
-    return predictions
+    return transactions, predictions

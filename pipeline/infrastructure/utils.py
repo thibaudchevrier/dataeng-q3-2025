@@ -33,7 +33,7 @@ def _retry_with_backoff(max_retries: int = 3, initial_delay: float = 1.0):
                     if attempt > 0:
                         logger.info(f"Batch {batch_id}: Retry succeeded on attempt {attempt + 1}")
                     
-                    return result, None
+                    return result
                     
                 except requests.exceptions.RequestException as e:
                     if attempt < max_retries - 1:
@@ -46,11 +46,11 @@ def _retry_with_backoff(max_retries: int = 3, initial_delay: float = 1.0):
                     else:
                         logger.error(
                             f"Batch {batch_id}: All {max_retries} attempts failed - {e}. "
-                            f"Moving {len(transactions) if transactions else 0} transactions to failed queue."
+                            f"Moving transactions to failed queue."
                         )
-                        return None, transactions
+                        return transactions, None
             
-            return None, transactions
+            return transactions, None
         
         return wrapper
     return decorator
