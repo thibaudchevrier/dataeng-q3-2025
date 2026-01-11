@@ -18,14 +18,11 @@ class BaseService:
 
     This class encapsulates core operations (predictions, database writes)
     that are common across batch and streaming processing pipelines.
-    Subclasses should implement the `read()` method for data loading.
+    Subclasses should implement the `read()` method for data loading and
+    may add source-specific attributes (e.g., S3 path, Kafka consumer).
 
     Attributes
     ----------
-    s3_path : str
-        S3/MinIO path to transaction data source.
-    storage_options : dict
-        Storage configuration for S3 access (credentials, endpoint).
     ml_api_url : str
         URL for ML fraud detection API.
     db_session : Session
@@ -37,25 +34,31 @@ class BaseService:
         Get fraud predictions from ML API.
     bulk_write(transactions: list[dict], predictions: list[dict]) -> None
         Persist transactions and predictions to database.
+    read(batch_size: int) -> Iterator[tuple[list[dict], list[dict]]]
+        Load and yield transaction batches. Must be implemented by subclasses.
+
+    Notes
+    -----
+    This is an abstract base class. Subclasses must implement `read()` method
+    for their specific data sources (S3, Kafka, etc.).
     """
 
-    def __init__(self, s3_path: str, storage_options: dict, ml_api_url: str, db_session: Session) -> None:
+    def __init__(self, ml_api_url: str, db_session: Session) -> None:
         """
-        Initialize BaseService with configuration.
+        Initialize BaseService with ML API and database configuration.
 
         Parameters
         ----------
-        s3_path : str
-            S3/MinIO path to transaction data.
-        storage_options : dict
-            S3 configuration (credentials, endpoint URL).
         ml_api_url : str
-            ML API endpoint URL.
+            ML API endpoint URL for fraud predictions.
         db_session : Session
             SQLAlchemy session for database operations.
+
+        Notes
+        -----
+        Subclasses may accept additional parameters for source-specific
+        configuration (e.g., S3 credentials, Kafka consumer).
         """
-        self.s3_path = s3_path
-        self.storage_options = storage_options
         self.ml_api_url = ml_api_url
         self.db_session = db_session
 

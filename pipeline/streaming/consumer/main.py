@@ -14,10 +14,9 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 
 from confluent_kafka import Consumer
-from sqlalchemy.orm import Session
-
 from core import orchestrate_service, validate_transaction_records
 from infrastructure import BaseService, db_transaction, get_db_session
+from sqlalchemy.orm import Session
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -64,24 +63,38 @@ class StreamingService(BaseService):
     Streaming service for Kafka-based transaction processing.
 
     Extends BaseService to implement streaming-specific data loading
-    via Kafka consumer. Provides read() method that polls Kafka for
-    batches of messages, validates them, and yields to orchestration.
+    via Kafka consumer. Polls Kafka topics for transaction messages,
+    deserializes JSON, validates records, and yields batches to the
+    orchestration layer. Implements adaptive batching with timeout
+    strategies for variable message rates.
 
     Attributes
     ----------
     consumer : Consumer
-        Confluent Kafka consumer instance.
+        Confluent Kafka consumer instance for message polling.
     message_batch_size : int
-        Number of messages to accumulate before yielding batch.
+        Target number of messages to accumulate before yielding batch.
     poll_timeout : float
-        Timeout in seconds for Kafka poll operations.
+        Timeout in seconds for individual Kafka poll operations.
     buffer_timeout : float
         Maximum seconds to wait for full batch before yielding partial batch.
+    ml_api_url : str
+        ML API endpoint URL (inherited from BaseService).
+    db_session : Session
+        SQLAlchemy session for database operations (inherited from BaseService).
 
     Methods
     -------
     read(batch_size: int) -> Iterator[tuple[list[dict], list[dict]]]
         Poll Kafka for messages and yield validated transaction batches.
+
+    Notes
+    -----
+    Unlike BatchService, does not use S3 storage - data comes from Kafka stream.
+    Implements dual timeout strategy:
+    - Time-based: Yields partial batch after buffer_timeout seconds
+    - Consecutive poll: Yields after max_consecutive_timeouts empty polls
+    This ensures low-latency processing even with variable message rates.
     """
 
     def __init__(
@@ -94,18 +107,18 @@ class StreamingService(BaseService):
         buffer_timeout: float = 5.0,
     ) -> None:
         """
-        Initialize StreamingService with Kafka consumer.
+        Initialize StreamingService with Kafka consumer and configuration.
 
         Parameters
         ----------
         consumer : Consumer
-            Confluent Kafka consumer instance.
+            Confluent Kafka consumer instance (already subscribed to topic).
         ml_api_url : str
-            ML API endpoint URL.
+            ML API endpoint URL for fraud predictions.
         db_session : Session
             SQLAlchemy session for database operations.
         message_batch_size : int, optional
-            Messages to accumulate per batch (default: 100).
+            Target messages to accumulate per batch (default: 100).
         poll_timeout : float, optional
             Kafka poll timeout in seconds (default: 1.0).
         buffer_timeout : float, optional
@@ -113,11 +126,12 @@ class StreamingService(BaseService):
 
         Notes
         -----
-        Does not require s3_path or storage_options since data
-        comes from Kafka stream instead of S3/MinIO.
+        Calls parent BaseService.__init__() with ml_api_url and db_session only.
+        Does not pass S3 configuration since streaming reads from Kafka, not S3.
+        Consumer should be created via get_kafka_consumer context manager.
         """
         # BaseService expects s3_path and storage_options but we don't use them
-        super().__init__(s3_path="", storage_options={}, ml_api_url=ml_api_url, db_session=db_session)
+        super().__init__(ml_api_url=ml_api_url, db_session=db_session)
         self.consumer = consumer
         self.message_batch_size = message_batch_size
         self.poll_timeout = poll_timeout
@@ -127,29 +141,45 @@ class StreamingService(BaseService):
         """
         Poll Kafka for messages and yield validated transaction batches.
 
-        This method polls Kafka until it accumulates `batch_size` messages,
-        deserializes JSON, validates using validate_transaction_records,
-        and yields exactly ONE batch of (valid, invalid) transactions.
+        Implements the abstract read() method from BaseService for streaming
+        processing. Polls Kafka until accumulating `batch_size` messages or
+        timeout conditions are met, then deserializes, validates, and yields
+        exactly ONE batch before returning control to caller.
 
         Parameters
         ----------
         batch_size : int
-            Number of messages to accumulate before validating and yielding.
+            Target number of messages to accumulate before validating and yielding.
 
         Yields
         ------
         tuple[list[dict], list[dict]]
-            Tuple containing:
-            - List of valid transaction dictionaries
-            - List of invalid transaction dictionaries with errors
+            Single tuple containing:
+            - List of valid transaction dictionaries (passed schema validation)
+            - List of invalid transaction dictionaries with error details
+              (includes both JSON deserialization errors and validation errors)
 
         Notes
         -----
-        Generator exhausts after yielding one batch to allow
-        orchestrate_service to complete and return control to main loop.
-        Partial batches are yielded on consecutive timeouts (no messages).
-        Uses validate_transaction_records from core for consistent validation.
-        Time-based timeout ensures batches are processed even with low traffic.
+        This generator yields exactly ONE batch then exhausts, allowing
+        orchestrate_service to complete processing and return control to
+        main loop. This design enables:
+        - Transaction boundaries per batch (with db_transaction context)
+        - Progress tracking after each batch
+        - Graceful shutdown on KeyboardInterrupt
+
+        Timeout Strategy:
+        - Time-based: Yields partial batch if buffer_timeout seconds elapsed
+        - Consecutive poll: Yields partial batch after 3 empty poll attempts
+        - This ensures low-latency processing with variable message rates
+
+        Validation:
+        - JSON deserialization errors collected separately
+        - Schema validation via validate_transaction_records from core
+        - All errors combined and returned with batch
+
+        The generator pattern enables lazy evaluation and memory efficiency
+        for continuous streaming workloads.
         """
         raw_records = []
         json_errors = []
@@ -286,46 +316,48 @@ def main():
     total_failed = 0
     total_invalid = 0
 
-    with get_kafka_consumer(bootstrap_servers, group_id, topic) as consumer:
-        with get_db_session(os.environ["DATABASE_URL"]) as session:
-            service = StreamingService(
-                consumer=consumer,
-                ml_api_url=ml_api_url,
-                db_session=session,
-                message_batch_size=message_batch_size,
-                buffer_timeout=buffer_timeout,
+    with (
+        get_kafka_consumer(bootstrap_servers, group_id, topic) as consumer,
+        get_db_session(os.environ["DATABASE_URL"]) as session,
+    ):
+        service = StreamingService(
+            consumer=consumer,
+            ml_api_url=ml_api_url,
+            db_session=session,
+            message_batch_size=message_batch_size,
+            buffer_timeout=buffer_timeout,
+        )
+
+        try:
+            logger.info("Starting continuous batch processing...")
+            while True:
+                # Process one batch window within a transaction
+                with db_transaction(session):
+                    processed, failed, invalid = orchestrate_service(
+                        service=service,
+                        row_batch_size=message_batch_size,
+                        api_batch_size=api_batch_size,
+                        api_max_workers=api_max_workers,
+                        db_row_batch_size=db_row_batch_size,
+                    )
+
+                # Update totals after transaction commits
+                total_processed += processed
+                total_failed += len(failed)
+                total_invalid += len(invalid)
+
+                if processed > 0 or failed or invalid:
+                    logger.info(
+                        f"Batch complete - Processed: {processed}, Failed: {len(failed)}, "
+                        f"Invalid: {len(invalid)} | Total: {total_processed} processed, "
+                        f"{total_failed} failed, {total_invalid} invalid"
+                    )
+
+        except KeyboardInterrupt:
+            logger.info(
+                f"Consumer stopped. Final totals - Processed: {total_processed}, "
+                f"Failed: {total_failed}, Invalid: {total_invalid}"
             )
-
-            try:
-                logger.info("Starting continuous batch processing...")
-                while True:
-                    # Process one batch window within a transaction
-                    with db_transaction(session):
-                        processed, failed, invalid = orchestrate_service(
-                            service=service,
-                            row_batch_size=message_batch_size,
-                            api_batch_size=api_batch_size,
-                            api_max_workers=api_max_workers,
-                            db_row_batch_size=db_row_batch_size,
-                        )
-
-                    # Update totals after transaction commits
-                    total_processed += processed
-                    total_failed += len(failed)
-                    total_invalid += len(invalid)
-
-                    if processed > 0 or failed or invalid:
-                        logger.info(
-                            f"Batch complete - Processed: {processed}, Failed: {len(failed)}, "
-                            f"Invalid: {len(invalid)} | Total: {total_processed} processed, "
-                            f"{total_failed} failed, {total_invalid} invalid"
-                        )
-
-            except KeyboardInterrupt:
-                logger.info(
-                    f"Consumer stopped. Final totals - Processed: {total_processed}, "
-                    f"Failed: {total_failed}, Invalid: {total_invalid}"
-                )
 
 
 if __name__ == "__main__":

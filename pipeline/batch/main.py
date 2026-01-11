@@ -23,19 +23,66 @@ class BatchService(BaseService):
     """
     Batch processing service for transaction pipelines.
 
-    Extends BaseService to implement batch-specific data loading
-    via load_and_validate_transactions generator. Provides read()
-    method for orchestration layer.
+    Extends BaseService to implement batch-specific data loading from
+    S3/MinIO storage. Reads CSV transaction data in configurable batch
+    sizes and validates records before yielding to orchestration layer.
+
+    Attributes
+    ----------
+    s3_path : str
+        S3/MinIO path to transaction CSV file.
+    storage_options : dict
+        S3 configuration (access key, secret, endpoint URL).
+    ml_api_url : str
+        ML API endpoint URL (inherited from BaseService).
+    db_session : Session
+        SQLAlchemy session for database operations (inherited from BaseService).
 
     Methods
     -------
     read(batch_size: int) -> Iterator[tuple[list[dict], list[dict]]]
         Load and validate transactions in batches from S3/MinIO.
+
+    Notes
+    -----
+    Uses load_and_validate_transactions generator from infrastructure layer
+    for CSV parsing and validation logic reuse.
     """
+
+    def __init__(self, s3_path: str, storage_options: dict, ml_api_url: str, db_session) -> None:
+        """
+        Initialize BatchService with S3 and database configuration.
+
+        Parameters
+        ----------
+        s3_path : str
+            S3/MinIO path to transaction CSV file.
+        storage_options : dict
+            S3 configuration dictionary containing:
+            - key: MinIO access key
+            - secret: MinIO secret key
+            - client_kwargs: Dict with endpoint_url
+        ml_api_url : str
+            ML API endpoint URL for fraud predictions.
+        db_session : Session
+            SQLAlchemy session for database operations.
+
+        Notes
+        -----
+        Calls parent BaseService.__init__() with ml_api_url and db_session,
+        then stores S3-specific configuration as instance attributes.
+        """
+        super().__init__(ml_api_url=ml_api_url, db_session=db_session)
+        self.s3_path = s3_path
+        self.storage_options = storage_options
 
     def read(self, batch_size: int) -> Iterator[tuple[list[dict], list[dict]]]:
         """
-        Load and validate transactions in batches.
+        Load and validate transactions in batches from S3/MinIO.
+
+        Implements the abstract read() method from BaseService for
+        batch processing. Reads CSV data from S3/MinIO in chunks,
+        parses and validates each batch.
 
         Parameters
         ----------
@@ -46,13 +93,18 @@ class BatchService(BaseService):
         ------
         tuple[list[dict], list[dict]]
             Tuple containing:
-            - List of valid transactions
-            - List of invalid transactions
+            - List of valid transaction dictionaries
+            - List of invalid transaction dictionaries with error details
 
         Notes
         -----
-        Delegates to load_and_validate_transactions generator.
-        Uses s3_path and storage_options from parent class.
+        Delegates to load_and_validate_transactions generator which handles:
+        - CSV parsing from S3 (pandas with s3fs)
+        - Schema validation
+        - Data type coercion
+        - Error collection
+
+        Uses self.s3_path and self.storage_options configured during init.
         """
         return load_and_validate_transactions(
             s3_path=self.s3_path, storage_options=self.storage_options, batch_size=batch_size
