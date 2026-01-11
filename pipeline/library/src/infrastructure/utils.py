@@ -15,7 +15,7 @@ import requests
 logger = logging.getLogger(__name__)
 
 
-def _retry_with_backoff(max_retries: int = 3, initial_delay: float = 1.0):
+def retry_with_backoff(max_retries: int = 3, initial_delay: float = 1.0):
     """
     Decorate a function with exponential backoff retry logic.
 

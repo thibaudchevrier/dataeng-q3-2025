@@ -10,12 +10,12 @@ import os
 
 import requests
 
-from .utils import _retry_with_backoff
+from .utils import retry_with_backoff
 
 logger = logging.getLogger(__name__)
 
 
-@_retry_with_backoff(max_retries=int(os.getenv("MAX_RETRIES", "3")), initial_delay=1.0)
+@retry_with_backoff(max_retries=int(os.getenv("MAX_RETRIES", "3")), initial_delay=1.0)
 def predict_batch(transactions: list[dict], ml_api_url: str, batch_id: int = 0) -> tuple[list[dict], list[dict]]:
     """
     Send a batch of transactions to the ML API for prediction.
