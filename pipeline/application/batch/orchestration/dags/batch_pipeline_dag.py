@@ -14,10 +14,41 @@ import logging
 from datetime import datetime, timedelta
 
 from airflow import DAG
+from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk.bases.hook import BaseHook
 
 logger = logging.getLogger(__name__)
+
+
+class DynamicDockerOperator(DockerOperator):
+    """Custom DockerOperator that pulls environment variables from XCom."""
+
+    def __init__(self, xcom_task_id: str, xcom_key: str = "return_value", **kwargs):
+        """
+        Initialize with XCom task ID to pull environment from.
+
+        Args:
+            xcom_task_id: Task ID to pull XCom value from
+            xcom_key: XCom key to use (default: 'return_value')
+        """
+        self.xcom_task_id = xcom_task_id
+        self.xcom_key = xcom_key
+        super().__init__(**kwargs)
+
+    def execute(self, context):
+        """Pull environment from XCom before executing."""
+        # Pull environment variables from XCom
+        ti = context.get("ti")
+        if ti:
+            env_vars = ti.xcom_pull(task_ids=self.xcom_task_id, key=self.xcom_key)
+            # Update the environment parameter
+            if env_vars:
+                self.environment = env_vars
+
+        # Call parent execute
+        return super().execute(context)
+
 
 # Default arguments for the DAG
 default_args = {
@@ -87,34 +118,16 @@ with DAG(
         python_callable=get_environment_vars,
     )
 
-    # Task: Run batch processing with environment from XCom
-    def run_batch_with_env(**context):
-        """Run Docker container with environment variables from XCom."""
-        import docker
-
-        # Get environment variables from previous task
-        env_vars = context["ti"].xcom_pull(task_ids="get_environment_vars")
-
-        # Create Docker client
-        client = docker.from_env()
-
-        # Run container
-        container = client.containers.run(
-            image="batch-processor:latest",
-            environment=env_vars,
-            network="dataeng-q3-2025_ml-network",
-            detach=False,
-            remove=True,
-            stdout=True,
-            stderr=True,
-        )
-
-        logger.info(f"Batch processing output: {container.decode('utf-8')}")
-        return "success"
-
-    run_batch_processing = PythonOperator(
+    # Task: Run batch processing using custom DockerOperator
+    run_batch_processing = DynamicDockerOperator(
         task_id="run_batch_processing",
-        python_callable=run_batch_with_env,
+        image="batch-processor:latest",
+        api_version="auto",
+        auto_remove="success",
+        network_mode="dataeng-q3-2025_ml-network",
+        docker_url="unix://var/run/docker.sock",
+        mount_tmp_dir=False,
+        xcom_task_id="get_environment_vars",
     )
 
     # Task: Log completion
