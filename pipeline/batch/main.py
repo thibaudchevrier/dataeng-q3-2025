@@ -2,6 +2,7 @@ import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+import functools
 from infrastructure import get_db_session, db_write_results, load_and_validate_transactions, predict_batch
 
 # Configure logging
@@ -19,14 +20,7 @@ def main():
     pipeline_run_id = f"batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     logger.info(f"Pipeline Run ID: {pipeline_run_id}")
     
-    # Database configuration
-    database_url = os.getenv('DATABASE_URL', 'postgresql://qonto:qonto_password@localhost:5432/transactions')
-    
-    # Configure S3/MinIO credentials
-    os.environ['KEY'] = 'minioadmin'
-    os.environ['SECRET'] = 'minioadmin'
-    os.environ['AWS_ENDPOINT_URL'] = 'http://localhost:9000'
-    
+    ml_api_url = os.getenv('ML_API_URL', 'http://localhost:8000')
     row_batch_size = int(os.getenv('ROW_BATCH_SIZE', '5000'))
     api_batch_size = int(os.getenv('API_BATCH_SIZE', '100'))
     api_max_workers = int(os.getenv('API_MAX_WORKERS', '5'))
@@ -38,7 +32,7 @@ def main():
         "key": os.environ['KEY'],
         "secret": os.environ['SECRET'],
         "client_kwargs": {
-            "endpoint_url": os.environ['AWS_ENDPOINT_URL']
+            "endpoint_url": os.environ['ENDPOINT_URL']
         }
     }
 
@@ -50,7 +44,7 @@ def main():
     all_invalid_transactions = []  # Keep track of all invalid transactions
 
     # Use database context manager
-    with get_db_session(database_url) as session:
+    with get_db_session(os.environ['DATABASE_URL']) as session:
         # Load and validate transactions - returns generator and invalid transactions
         for batch_id, (valid_transactions, invalid_transactions) in enumerate(load_and_validate_transactions(
             s3_path=s3_path,
@@ -75,7 +69,7 @@ def main():
             with ThreadPoolExecutor(max_workers=api_max_workers) as executor:
                 # Map predict_batch function over API batches in parallel
                 results = executor.map(
-                    lambda args: predict_batch(args[1], args[0]), 
+                    lambda args: functools.partial(predict_batch, ml_api_url=ml_api_url)(args[1], args[0]), 
                     enumerate((valid_transactions[i:i + api_batch_size] for i in range(0, len(valid_transactions), api_batch_size)))
                 )
                 

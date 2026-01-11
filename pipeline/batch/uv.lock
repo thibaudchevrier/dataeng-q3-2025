@@ -12,6 +12,17 @@ wheels = [
 ]
 
 [[package]]
+name = "batch"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "library" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "library", editable = "../library" }]
+
+[[package]]
 name = "boto3"
 version = "1.42.25"
 source = { registry = "https://pypi.org/simple" }
@@ -172,9 +183,9 @@ wheels = [
 ]
 
 [[package]]
-name = "pipeline"
+name = "library"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "../library" }
 dependencies = [
     { name = "boto3" },
     { name = "fsspec" },
