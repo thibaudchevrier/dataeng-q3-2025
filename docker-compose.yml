@@ -148,7 +148,14 @@ services:
     networks:
       - ml-network
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   kafka-init:
     image: apache/kafka:latest
@@ -191,6 +198,56 @@ services:
         condition: service_started
     # Run once and exit - comment out restart to run manually
     # restart: "no"
+
+  streaming-producer-1:
+    build:
+      context: ./pipeline
+      dockerfile: streaming/producer/Dockerfile
+    container_name: streaming-producer-1
+    environment:
+      ENDPOINT_URL: http://minio:9000
+      KEY: minioadmin
+      SECRET: minioadmin
+      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+      KAFKA_TOPIC: transactions
+      PRODUCE_INTERVAL: "0.5"  # Faster interval: every 0.5 second
+      MIN_RECORDS_PER_BATCH: "1"
+      MAX_RECORDS_PER_BATCH: "10"
+    networks:
+      - ml-network
+    depends_on:
+      kafka-ui:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  streaming-producer-2:
+    build:
+      context: ./pipeline
+      dockerfile: streaming/producer/Dockerfile
+    container_name: streaming-producer-2
+    environment:
+      ENDPOINT_URL: http://minio:9000
+      KEY: minioadmin
+      SECRET: minioadmin
+      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+      KAFKA_TOPIC: transactions
+      PRODUCE_INTERVAL: "1.0"  # Slower interval: every 1 second
+      MIN_RECORDS_PER_BATCH: "5"  # Larger batches: 5-20 records
+      MAX_RECORDS_PER_BATCH: "20"
+    networks:
+      - ml-network
+    depends_on:
+      kafka-ui:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
 
 volumes:
   #postgres_data:
