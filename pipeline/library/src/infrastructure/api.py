@@ -8,12 +8,13 @@ logger = logging.getLogger(__name__)
 
 
 @_retry_with_backoff(max_retries=int(os.getenv('MAX_RETRIES', '3')), initial_delay=1.0)
-def predict_batch(transactions: list[dict], batch_id: int, ml_api_url: str = 'http://localhost:8000') -> tuple[list[dict], list[dict]]:
+def predict_batch(transactions: list[dict], ml_api_url: str, batch_id: int = 0) -> tuple[list[dict], list[dict]]:
     """
     Send a batch of transactions to the ML API for prediction.
     
     Args:
         transactions: List of transaction dictionaries
+        ml_api_url: ML API URL (e.g., 'http://ml-api:8000')
         batch_id: Batch identifier for logging
         
     Returns:
