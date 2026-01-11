@@ -1,11 +1,12 @@
 [project]
-name = "batch"
+name = "consumer"
 version = "0.1.0"
-description = "Batch processing pipeline for fraud detection on historical transaction data"
+description = "Kafka consumer for real-time transaction processing and fraud detection"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "library",
+    "confluent-kafka>=2.1.0",
 ]
 
 [dependency-groups]
@@ -87,7 +88,7 @@ reportMissingImports = true
 reportMissingTypeStubs = false
 pythonVersion = "3.13"
 pythonPlatform = "Linux"
-venvPath = "."
+venvPath = "../../../.."
 venv = ".venv"
 
 [tool.poe.tasks.types]

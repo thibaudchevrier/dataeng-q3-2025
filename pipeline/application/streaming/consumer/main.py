@@ -130,7 +130,6 @@ class StreamingService(BaseService):
         Does not pass S3 configuration since streaming reads from Kafka, not S3.
         Consumer should be created via get_kafka_consumer context manager.
         """
-        # BaseService expects s3_path and storage_options but we don't use them
         super().__init__(ml_api_url=ml_api_url, db_session=db_session)
         self.consumer = consumer
         self.message_batch_size = message_batch_size

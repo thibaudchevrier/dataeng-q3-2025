@@ -19,16 +19,17 @@ package = false
 [tool.uv.workspace]
 members = [
     "pipeline/library",
-    "pipeline/batch",
-    "pipeline/streaming/producer",
-    "pipeline/streaming/consumer",
+    "pipeline/application/batch/service",
+    "pipeline/application/batch/orchestration",
+    "pipeline/application/streaming/producer",
+    "pipeline/application/streaming/consumer",
 ]
 
 # Global Poe tasks that orchestrate across all modules
 [tool.poe.tasks.format-all]
 help = "Format all pipeline modules"
 shell = """
-for module in pipeline/library/src pipeline/batch pipeline/streaming/producer pipeline/streaming/consumer; do
+for module in pipeline/library/src pipeline/application/batch/service pipeline/application/streaming/producer pipeline/application/streaming/consumer; do
     echo "🎨 Formatting $module..."
     (cd $module && uv run poe linter-fix) || exit 1
 done
@@ -38,7 +39,7 @@ echo "✅ All modules formatted successfully"
 [tool.poe.tasks.lint-all]
 help = "Run linting on all pipeline modules"
 shell = """
-for module in pipeline/library/src pipeline/batch pipeline/streaming/producer pipeline/streaming/consumer; do
+for module in pipeline/library/src pipeline/application/batch/service pipeline/application/streaming/producer pipeline/application/streaming/consumer; do
     echo "🔍 Linting $module..."
     (cd $module && uv run poe lint) || exit 1
 done
@@ -48,7 +49,7 @@ echo "✅ All modules linted successfully"
 [tool.poe.tasks.test-all]
 help = "Run tests on all pipeline modules"
 shell = """
-for module in pipeline/library/src pipeline/batch pipeline/streaming/producer pipeline/streaming/consumer; do
+for module in pipeline/library/src pipeline/application/batch/service pipeline/application/streaming/producer pipeline/application/streaming/consumer; do
     echo "🧪 Testing $module..."
     (cd $module && uv run poe test) || exit 1
 done
@@ -58,7 +59,7 @@ echo "✅ All module tests passed"
 [tool.poe.tasks.types-all]
 help = "Run type checking on all pipeline modules"
 shell = """
-for module in pipeline/library/src pipeline/batch pipeline/streaming/producer pipeline/streaming/consumer; do
+for module in pipeline/library/src pipeline/application/batch/service pipeline/application/streaming/producer pipeline/application/streaming/consumer; do
     echo "🔎 Type checking $module..."
     (cd $module && uv run poe types) || exit 1
 done
@@ -72,7 +73,7 @@ sequence = ["format-all", "types-all", "lint-all"]
 [tool.poe.tasks.clean-all]
 help = "Clean all pipeline modules"
 shell = """
-for module in pipeline/library/src pipeline/batch pipeline/streaming/producer pipeline/streaming/consumer; do
+for module in pipeline/library/src pipeline/application/batch/service pipeline/application/streaming/producer pipeline/application/streaming/consumer; do
     echo "🧹 Cleaning $module..."
     (cd $module && uv run poe clean) || exit 1
 done
@@ -83,9 +84,9 @@ echo "✅ All modules cleaned"
 addopts = "-q --strict-markers"
 testpaths = [
     "pipeline/library/tests",
-    "pipeline/batch/tests",
-    "pipeline/streaming/producer/tests",
-    "pipeline/streaming/consumer/tests",
+    "pipeline/application/batch/service/tests",
+    "pipeline/application/streaming/producer/tests",
+    "pipeline/application/streaming/consumer/tests",
 ]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]

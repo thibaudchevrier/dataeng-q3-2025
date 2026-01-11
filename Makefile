@@ -56,6 +56,10 @@ rebuild-batch: ## Rebuild and restart batch service
 rebuild-all: ## Rebuild and restart all pipeline services (streaming + batch)
 	docker-compose --profile all up -d --build
 
+rebuild-clean: ## Rebuild all services from scratch (no cache)
+	docker-compose --profile all build --no-cache
+	docker-compose --profile all up -d
+
 restart-consumer: ## Restart consumer
 	docker-compose restart streaming-consumer
 

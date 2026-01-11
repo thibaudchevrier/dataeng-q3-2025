@@ -177,8 +177,8 @@ services:
   batch:
     profiles: ["batch", "all"]
     build:
-      context: ./pipeline
-      dockerfile: batch/Dockerfile
+      context: .
+      dockerfile: pipeline/application/batch/service/Dockerfile
     container_name: batch-processor
     environment:
       DATABASE_URL: postgresql://qonto:qonto_password@postgres:5432/transactions
@@ -203,8 +203,8 @@ services:
   streaming-producer-1:
     profiles: ["streaming", "all"]
     build:
-      context: ./pipeline
-      dockerfile: streaming/producer/Dockerfile
+      context: .
+      dockerfile: pipeline/application/streaming/producer/Dockerfile
     container_name: streaming-producer-1
     environment:
       ENDPOINT_URL: http://minio:9000
@@ -229,8 +229,8 @@ services:
   streaming-producer-2:
     profiles: ["streaming", "all"]
     build:
-      context: ./pipeline
-      dockerfile: streaming/producer/Dockerfile
+      context: .
+      dockerfile: pipeline/application/streaming/producer/Dockerfile
     container_name: streaming-producer-2
     environment:
       ENDPOINT_URL: http://minio:9000
@@ -255,8 +255,8 @@ services:
   streaming-consumer:
     profiles: ["streaming", "all"]
     build:
-      context: ./pipeline
-      dockerfile: streaming/consumer/Dockerfile
+      context: .
+      dockerfile: pipeline/application/streaming/consumer/Dockerfile
     container_name: streaming-consumer
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:19092

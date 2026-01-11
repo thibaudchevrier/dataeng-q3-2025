@@ -1,12 +1,11 @@
 [project]
-name = "producer"
+name = "batch"
 version = "0.1.0"
-description = "Kafka producer for streaming transaction data simulation"
+description = "Batch processing pipeline for fraud detection on historical transaction data"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "library",
-    "confluent-kafka>=2.1.0",
 ]
 
 [dependency-groups]
@@ -88,7 +87,7 @@ reportMissingImports = true
 reportMissingTypeStubs = false
 pythonVersion = "3.13"
 pythonPlatform = "Linux"
-venvPath = "."
+venvPath = "../../../.."
 venv = ".venv"
 
 [tool.poe.tasks.types]

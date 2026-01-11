@@ -8,6 +8,7 @@ members = [
     "consumer",
     "dataeng-q3-2025",
     "library",
+    "orchestration",
     "producer",
 ]
 
@@ -46,7 +47,7 @@ wheels = [
 [[package]]
 name = "batch"
 version = "0.1.0"
-source = { virtual = "pipeline/batch" }
+source = { virtual = "pipeline/application/batch/service" }
 dependencies = [
     { name = "library" },
 ]
@@ -245,7 +246,7 @@ wheels = [
 [[package]]
 name = "consumer"
 version = "0.1.0"
-source = { virtual = "pipeline/streaming/consumer" }
+source = { virtual = "pipeline/application/streaming/consumer" }
 dependencies = [
     { name = "confluent-kafka" },
     { name = "library" },
@@ -809,6 +810,11 @@ wheels = [
 ]
 
 [[package]]
+name = "orchestration"
+version = "0.1.0"
+source = { virtual = "pipeline/application/batch/orchestration" }
+
+[[package]]
 name = "packaging"
 version = "25.0"
 source = { registry = "https://pypi.org/simple" }
@@ -922,7 +928,7 @@ wheels = [
 [[package]]
 name = "producer"
 version = "0.1.0"
-source = { virtual = "pipeline/streaming/producer" }
+source = { virtual = "pipeline/application/streaming/producer" }
 dependencies = [
     { name = "confluent-kafka" },
     { name = "library" },

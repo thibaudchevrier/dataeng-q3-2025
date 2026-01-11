@@ -1,7 +1,7 @@
 [project]
-name = "consumer"
+name = "producer"
 version = "0.1.0"
-description = "Kafka consumer for real-time transaction processing and fraud detection"
+description = "Kafka producer for streaming transaction data simulation"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -88,7 +88,7 @@ reportMissingImports = true
 reportMissingTypeStubs = false
 pythonVersion = "3.13"
 pythonPlatform = "Linux"
-venvPath = "."
+venvPath = "../../../.."
 venv = ".venv"
 
 [tool.poe.tasks.types]

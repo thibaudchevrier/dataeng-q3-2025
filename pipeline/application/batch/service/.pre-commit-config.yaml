@@ -7,12 +7,12 @@ repos:
         verbose: true
         pass_filenames: false
         name: format
-        entry: bash -c 'cd "$(git rev-parse --show-toplevel)/pipeline/streaming/producer" && uv run poe linter-fix'
+        entry: bash -c 'cd "$(git rev-parse --show-toplevel)/pipeline/application/batch/service" && uv run poe linter-fix'
         language: system
         fail_fast: true
       - id: poe-check
         verbose: true
         pass_filenames: false
         name: check
-        entry: bash -c 'cd "$(git rev-parse --show-toplevel)/pipeline/streaming/producer" && uv run poe check'
+        entry: bash -c 'cd "$(git rev-parse --show-toplevel)/pipeline/application/batch/service" && uv run poe check'
         language: system
