@@ -13,7 +13,7 @@ COPY pipeline/application/batch/orchestration/ /app/pipeline/application/batch/o
 WORKDIR /app/pipeline/application/batch/orchestration
 
 # Install dependencies (creates .venv at workspace root: /app/.venv)
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-default-groups
 
 # Release stage: Use official Airflow 3.1.5 image with Python 3.12
 FROM apache/airflow:3.1.5-python3.12

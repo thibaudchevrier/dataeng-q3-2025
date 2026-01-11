@@ -11,7 +11,7 @@ COPY pipeline/application/streaming/producer/ /app/pipeline/application/streamin
 
 # Change to producer directory and install dependencies
 WORKDIR /app/pipeline/application/streaming/producer
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-default-groups
 
 FROM python:3.13-slim AS release
 

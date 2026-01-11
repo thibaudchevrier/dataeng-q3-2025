@@ -5,7 +5,7 @@ description = "Kafka producer for streaming transaction data simulation"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "library",
+    "library[files]",
     "confluent-kafka>=2.1.0",
 ]
 

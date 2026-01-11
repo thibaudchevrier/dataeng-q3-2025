@@ -334,7 +334,7 @@ name = "batch"
 version = "0.1.0"
 source = { virtual = "pipeline/application/batch/service" }
 dependencies = [
-    { name = "library" },
+    { name = "library", extra = ["files"] },
 ]
 
 [package.dev-dependencies]
@@ -352,7 +352,7 @@ lint = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "library", editable = "pipeline/library" }]
+requires-dist = [{ name = "library", extras = ["files"], editable = "pipeline/library" }]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1339,14 +1339,18 @@ name = "library"
 version = "0.1.0"
 source = { editable = "pipeline/library" }
 dependencies = [
-    { name = "boto3" },
-    { name = "fsspec" },
-    { name = "polars" },
     { name = "psycopg2-binary" },
     { name = "pydantic" },
     { name = "requests" },
-    { name = "s3fs" },
     { name = "sqlalchemy" },
+]
+
+[package.optional-dependencies]
+files = [
+    { name = "boto3" },
+    { name = "fsspec" },
+    { name = "polars" },
+    { name = "s3fs" },
 ]
 
 [package.dev-dependencies]
@@ -1372,15 +1376,16 @@ lint = [
 
 [package.metadata]
 requires-dist = [
-    { name = "boto3", specifier = ">=1.42.25" },
-    { name = "fsspec", specifier = ">=2026.1.0" },
-    { name = "polars", specifier = ">=0.19.0" },
+    { name = "boto3", marker = "extra == 'files'", specifier = ">=1.42.25" },
+    { name = "fsspec", marker = "extra == 'files'", specifier = ">=2026.1.0" },
+    { name = "polars", marker = "extra == 'files'", specifier = ">=0.19.0" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "pydantic", specifier = ">=2.5.1" },
     { name = "requests", specifier = ">=2.32.5" },
-    { name = "s3fs", specifier = ">=0.4.2" },
+    { name = "s3fs", marker = "extra == 'files'", specifier = ">=0.4.2" },
     { name = "sqlalchemy", specifier = ">=2.0.45" },
 ]
+provides-extras = ["files"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -2068,7 +2073,7 @@ version = "0.1.0"
 source = { virtual = "pipeline/application/streaming/producer" }
 dependencies = [
     { name = "confluent-kafka" },
-    { name = "library" },
+    { name = "library", extra = ["files"] },
 ]
 
 [package.dev-dependencies]
@@ -2088,7 +2093,7 @@ lint = [
 [package.metadata]
 requires-dist = [
     { name = "confluent-kafka", specifier = ">=2.1.0" },
-    { name = "library", editable = "pipeline/library" },
+    { name = "library", extras = ["files"], editable = "pipeline/library" },
 ]
 
 [package.metadata.requires-dev]

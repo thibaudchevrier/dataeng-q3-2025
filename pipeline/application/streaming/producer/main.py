@@ -14,7 +14,7 @@ import random
 from contextlib import asynccontextmanager
 
 from confluent_kafka.aio import AIOProducer
-from infrastructure import load_and_validate_transactions
+from infrastructure.generator import load_and_validate_transactions
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")

@@ -12,7 +12,8 @@ from collections.abc import Iterator
 from datetime import datetime
 
 from core import orchestrate_service
-from infrastructure import BaseService, get_db_session, load_and_validate_transactions
+from infrastructure import BaseService, get_db_session
+from infrastructure.generator import load_and_validate_transactions
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")

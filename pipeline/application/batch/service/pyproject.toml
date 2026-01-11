@@ -5,7 +5,7 @@ description = "Batch processing pipeline for fraud detection on historical trans
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "library",
+    "library[files]",
 ]
 
 [dependency-groups]

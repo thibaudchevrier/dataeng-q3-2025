@@ -11,7 +11,7 @@ COPY pipeline/application/batch/service/ /app/pipeline/application/batch/service
 
 # Change to batch service directory and install dependencies
 WORKDIR /app/pipeline/application/batch/service
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-default-groups
 
 FROM python:3.13-slim AS release
 
