@@ -1,3 +1,13 @@
+"""
+Infrastructure layer for data pipeline operations.
+
+This package provides core infrastructure components including:
+- API clients for ML predictions
+- Database operations with SQLAlchemy
+- Data loading and validation from S3/MinIO
+- Base service classes for pipeline orchestration
+"""
+
 from .api import predict_batch
 from .database import db_write_results, get_db_session
 from .generator import load_and_validate_transactions

@@ -1,5 +1,9 @@
 """
-Simple database utilities for PostgreSQL operations.
+Database operations module for PostgreSQL.
+
+This module provides SQLAlchemy models for transactions and predictions,
+session management utilities, and bulk insert/upsert operations with
+retry logic for resilient database interactions.
 """
 import logging
 from contextlib import contextmanager
@@ -52,9 +56,26 @@ def get_db_session(database_url: str):
     """
     Context manager for database session.
     
-    Usage:
-        with get_db_session(url) as session:
-            bulk_insert_transactions(session, transactions)
+    Parameters
+    ----------
+    database_url : str
+        PostgreSQL connection URL 
+        (e.g., 'postgresql://user:pass@host:port/dbname').
+        
+    Yields
+    ------
+    Session
+        SQLAlchemy session object for database operations.
+        
+    Notes
+    -----
+    Automatically commits on success, rolls back on error, 
+    and closes the session in all cases.
+    
+    Examples
+    --------
+    >>> with get_db_session(url) as session:
+    ...     bulk_insert_transactions(session, transactions)
     """
     engine = create_engine(
         database_url,
@@ -81,7 +102,19 @@ def get_db_session(database_url: str):
 def __bulk_insert_transactions(session: Session, transactions: list[dict]):
     """
     Insert transactions with ON CONFLICT DO NOTHING (idempotent).
-    Re-running won't create duplicates.
+    
+    Parameters
+    ----------
+    session : Session
+        SQLAlchemy session object.
+    transactions : list[dict]
+        List of transaction dictionaries with keys matching 
+        Transaction model columns.
+        
+    Notes
+    -----
+    Re-running with the same transaction IDs won't create 
+    duplicates due to ON CONFLICT DO NOTHING clause.
     """
     if not transactions:
         return
@@ -97,7 +130,19 @@ def __bulk_insert_transactions(session: Session, transactions: list[dict]):
 def __bulk_upsert_predictions(session: Session, predictions: list[dict]):
     """
     UPSERT predictions: insert new ones, update existing ones.
-    If transaction_id exists, update with latest prediction.
+    
+    Parameters
+    ----------
+    session : Session
+        SQLAlchemy session object.
+    predictions : list[dict]
+        List of prediction dictionaries with keys matching 
+        Prediction model columns.
+        
+    Notes
+    -----
+    If transaction_id exists, updates with latest prediction.
+    Otherwise, inserts as new prediction.
     """
     if not predictions:
         return
@@ -125,6 +170,21 @@ def __bulk_upsert_predictions(session: Session, predictions: list[dict]):
 def db_write_results(session: Session, all_valid_transactions: list[dict], all_predictions: list[dict]):
     """
     Write valid transactions and predictions to the database.
+    
+    Parameters
+    ----------
+    session : Session
+        SQLAlchemy session object.
+    all_valid_transactions : list[dict]
+        List of validated transaction dictionaries to persist.
+    all_predictions : list[dict]
+        List of prediction dictionaries to persist.
+        
+    Notes
+    -----
+    Clears the input lists after successful persistence.
+    Transactions are inserted idempotently (no duplicates).
+    Predictions are upserted (insert or update).
     """
     if all_valid_transactions:
         # Insert transactions to database (idempotent)

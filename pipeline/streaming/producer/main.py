@@ -1,3 +1,11 @@
+"""
+Kafka streaming producer for transaction data.
+
+This module implements an async Kafka producer that continuously streams
+transaction data to Kafka topics, simulating real-time transaction events
+with configurable intervals and batch sizes.
+"""
+
 import asyncio
 import logging
 import os
@@ -20,11 +28,20 @@ async def get_kafka_producer(bootstrap_servers: str):
     """
     Async context manager for Kafka AIOProducer.
     
-    Args:
-        bootstrap_servers: Kafka bootstrap servers (e.g., "localhost:9092")
+    Parameters
+    ----------
+    bootstrap_servers : str
+        Kafka bootstrap servers (e.g., "localhost:9092").
         
-    Yields:
-        AIOProducer instance
+    Yields
+    ------
+    AIOProducer
+        Kafka async producer instance for message publishing.
+        
+    Notes
+    -----
+    Automatically flushes buffered messages and closes the 
+    producer on context exit.
     """
     producer = AIOProducer({"bootstrap.servers": bootstrap_servers})
     try:
@@ -39,13 +56,26 @@ async def produce_messages(producer: AIOProducer, topic: str, interval: float, r
     """
     Continuously produce messages at regular intervals.
     
-    Args:
-        producer: AIOProducer instance
-        topic: Kafka topic name
-        interval: Time in seconds between messages
-        record_samples: List of transaction records to sample from
-        min_records: Minimum number of records to send per interval
-        max_records: Maximum number of records to send per interval
+    Parameters
+    ----------
+    producer : AIOProducer
+        Kafka async producer instance.
+    topic : str
+        Kafka topic name to publish messages to.
+    interval : float
+        Time in seconds between message batches.
+    record_samples : list[dict]
+        List of transaction records to sample from.
+    min_records : int, optional
+        Minimum number of records to send per interval, by default 1.
+    max_records : int, optional
+        Maximum number of records to send per interval, by default 10.
+        
+    Notes
+    -----
+    Messages are produced in parallel using asyncio.gather().
+    Samples are selected randomly with replacement.
+    No key is used, so messages distribute round-robin across partitions.
     """
     message_count = 0
     
@@ -89,6 +119,40 @@ async def produce_messages(producer: AIOProducer, topic: str, interval: float, r
 
 
 async def main():
+    """
+    Execute Kafka producer workflow.
+    
+    This async function orchestrates the producer lifecycle:
+    - Loads configuration from environment variables
+    - Loads and validates all transactions from S3/MinIO
+    - Creates Kafka producer connection
+    - Continuously streams messages at configured intervals
+    
+    Environment Variables
+    ---------------------
+    KEY : str
+        MinIO access key (required).
+    SECRET : str
+        MinIO secret key (required).
+    ENDPOINT_URL : str
+        MinIO endpoint URL (required).
+    KAFKA_BOOTSTRAP_SERVERS : str
+        Kafka bootstrap servers (default: 'localhost:9092').
+    KAFKA_TOPIC : str
+        Target Kafka topic (default: 'transactions').
+    PRODUCE_INTERVAL : float
+        Seconds between message batches (default: 0.5).
+    MIN_RECORDS_PER_BATCH : int
+        Minimum records per batch (default: 1).
+    MAX_RECORDS_PER_BATCH : int
+        Maximum records per batch (default: 10).
+        
+    Notes
+    -----
+    Loads all transactions into memory for random sampling.
+    Logs invalid transactions but doesn't produce them.
+    Runs indefinitely until interrupted (KeyboardInterrupt).
+    """
     # Configuration
     # Read and validate CSV from MinIO
     s3_path = "s3://transactions/transactions_fr.csv"

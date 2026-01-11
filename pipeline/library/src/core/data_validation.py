@@ -1,3 +1,11 @@
+"""
+Transaction validation module.
+
+This module provides Pydantic-based validation for transaction records,
+ensuring data quality and automatically generating UUIDs for valid
+transactions.
+"""
+
 import logging
 
 from .model import Transaction
@@ -11,13 +19,22 @@ def validate_transaction_records(records: list[dict]) -> tuple[list[dict], list[
     """
     Validate a list of transaction records using Pydantic.
 
-    Args:
-        records: List of transaction records as dictionaries.
+    Parameters
+    ----------
+    records : list[dict]
+        List of transaction records as dictionaries to validate.
 
-    Returns:
-        A tuple containing:
-        - List of validated transaction dictionaries.
+    Returns
+    -------
+    tuple[list[dict], list[dict]]
+        Tuple containing:
+        - List of validated transaction dictionaries (with auto-generated UUIDs).
         - List of invalid transaction error dictionaries.
+        
+    Notes
+    -----
+    The Transaction model auto-generates UUIDs via default_factory.
+    Validation errors are logged for debugging purposes.
     """
     # Validate and auto-assign UUIDs
     validated_transactions = []

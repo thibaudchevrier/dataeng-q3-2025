@@ -1,3 +1,11 @@
+"""
+Batch processing pipeline for transaction data.
+
+This module implements a batch processing pipeline that loads transactions
+from S3/MinIO, validates them, performs ML fraud predictions in parallel,
+and persists results to PostgreSQL database.
+"""
+
 import logging
 import os
 from datetime import datetime
@@ -17,8 +25,40 @@ logger = logging.getLogger(__name__)
 
 
 class BatchService(BaseService):
+    """
+    Batch processing service for transaction pipelines.
+    
+    Extends BaseService to implement batch-specific data loading
+    via load_and_validate_transactions generator. Provides read()
+    method for orchestration layer.
+    
+    Methods
+    -------
+    read(batch_size: int) -> Iterator[tuple[list[dict], list[dict]]]
+        Load and validate transactions in batches from S3/MinIO.
+    """
 
     def read(self, batch_size: int) -> Iterator[tuple[list[dict], list[dict]]]:
+        """
+        Load and validate transactions in batches.
+        
+        Parameters
+        ----------
+        batch_size : int
+            Number of transactions to load per batch.
+            
+        Yields
+        ------
+        tuple[list[dict], list[dict]]
+            Tuple containing:
+            - List of valid transactions
+            - List of invalid transactions
+            
+        Notes
+        -----
+        Delegates to load_and_validate_transactions generator.
+        Uses s3_path and storage_options from parent class.
+        """
         return load_and_validate_transactions(
             s3_path=self.s3_path,
             storage_options=self.storage_options,
@@ -27,6 +67,41 @@ class BatchService(BaseService):
 
 
 def main():
+    """
+    Execute batch processing pipeline.
+    
+    This function orchestrates the complete batch processing workflow:
+    - Loads configuration from environment variables
+    - Creates database session
+    - Initializes BatchService with S3/MinIO credentials
+    - Runs orchestrate_service for parallel processing
+    
+    Environment Variables
+    ---------------------
+    ML_API_URL : str
+        ML API endpoint (default: 'http://localhost:8000').
+    ROW_BATCH_SIZE : int
+        Transactions per batch from source (default: 5000).
+    API_BATCH_SIZE : int
+        Transactions per API request (default: 100).
+    API_MAX_WORKERS : int
+        Parallel API workers (default: 5).
+    DB_ROW_BATCH_SIZE : int
+        Threshold for bulk database writes (default: 1000).
+    DATABASE_URL : str
+        PostgreSQL connection string (required).
+    KEY : str
+        MinIO access key (required).
+    SECRET : str
+        MinIO secret key (required).
+    ENDPOINT_URL : str
+        MinIO endpoint URL (required).
+        
+    Notes
+    -----
+    Generates unique pipeline_run_id for tracking execution.
+    Logs configuration and progress throughout execution.
+    """
     logger.info("Starting batch pipeline")
     
     # Generate unique pipeline run ID

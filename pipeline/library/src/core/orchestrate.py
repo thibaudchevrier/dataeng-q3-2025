@@ -1,3 +1,10 @@
+"""
+Service orchestration module for batch processing.
+
+This module provides orchestration logic for processing transaction batches
+with parallel API calls, error handling, and bulk database operations.
+Coordinates data flow between validation, prediction, and persistence layers.
+"""
 
 from concurrent.futures import ThreadPoolExecutor
 import functools
@@ -9,6 +16,42 @@ logger = logging.getLogger(__name__)
 
 
 def orchestrate_service(service: ServiceProtocol, row_batch_size: int, api_batch_size: int, api_max_workers: int, db_row_batch_size: int) -> tuple[int, list[dict], list[dict]]:
+    """
+    Orchestrate batch processing of transactions through the pipeline.
+    
+    This function coordinates the entire batch processing workflow:
+    - Loading and validating transactions in batches
+    - Parallel API calls for fraud predictions
+    - Bulk database writes for results
+    - Error tracking and reporting
+    
+    Parameters
+    ----------
+    service : ServiceProtocol
+        Service instance implementing read, predict, and bulk_write methods.
+    row_batch_size : int
+        Number of transactions to process in each batch from source.
+    api_batch_size : int
+        Number of transactions to send to ML API in each request.
+    api_max_workers : int
+        Maximum number of parallel workers for API calls.
+    db_row_batch_size : int
+        Threshold for bulk database writes.
+        
+    Returns
+    -------
+    tuple[int, list[dict], list[dict]]
+        Tuple containing:
+        - Total number of successfully processed transactions
+        - List of failed transactions (after retries)
+        - List of invalid transactions (validation failures)
+        
+    Notes
+    -----
+    Uses ThreadPoolExecutor for parallel API calls within each batch.
+    Automatically handles retries via service.predict decorator.
+    Performs bulk database writes when threshold is reached.
+    """
 
     total_processed = 0
     all_predictions = []

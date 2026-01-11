@@ -1,3 +1,11 @@
+"""
+Kafka streaming consumer for transaction processing.
+
+This module implements a Kafka consumer that continuously consumes
+transaction messages from Kafka topics, processes them (validation,
+ML predictions, database persistence), and handles failures.
+"""
+
 import logging
 import os
 import json
@@ -17,13 +25,25 @@ def get_kafka_consumer(bootstrap_servers: str, group_id: str, topic: str):
     """
     Context manager for Kafka Consumer.
     
-    Args:
-        bootstrap_servers: Kafka bootstrap servers
-        group_id: Consumer group ID
-        topic: Topic to subscribe to
+    Parameters
+    ----------
+    bootstrap_servers : str
+        Kafka bootstrap servers (e.g., "localhost:9092").
+    group_id : str
+        Consumer group ID for coordinated consumption.
+    topic : str
+        Kafka topic to subscribe to.
         
-    Yields:
-        Consumer instance
+    Yields
+    ------
+    Consumer
+        Kafka consumer instance for message consumption.
+        
+    Notes
+    -----
+    Consumer automatically closes on context exit.
+    Configured with 'auto.offset.reset' set to 'earliest' 
+    to consume from beginning if no offset exists.
     """
     c = Consumer({
         'bootstrap.servers': bootstrap_servers,
@@ -39,7 +59,40 @@ def get_kafka_consumer(bootstrap_servers: str, group_id: str, topic: str):
         c.close()
 
 
+
 def main():
+    """
+    Execute Kafka consumer workflow.
+    
+    This function orchestrates the consumer lifecycle:
+    - Loads configuration from environment variables
+    - Creates Kafka consumer with group coordination
+    - Continuously polls for messages
+    - Processes transactions (TODO: validation, ML, database)
+    
+    Environment Variables
+    ---------------------
+    KAFKA_BOOTSTRAP_SERVERS : str
+        Kafka bootstrap servers (default: 'localhost:9092').
+    KAFKA_CONSUMER_GROUP : str
+        Consumer group ID (default: 'transaction-consumer-group').
+    KAFKA_TOPIC : str
+        Source Kafka topic (default: 'transactions').
+        
+    Notes
+    -----
+    Polls with 1 second timeout for responsive shutdown.
+    Logs progress every 100 messages for monitoring.
+    Gracefully handles KeyboardInterrupt for clean shutdown.
+    
+    TODO
+    ----
+    Implement full transaction processing:
+    1. Validate transactions with Pydantic models
+    2. Call ML API for fraud predictions
+    3. Store results in PostgreSQL database
+    4. Produce failed transactions to error topic
+    """
     # Configuration
     bootstrap_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
     group_id = os.getenv('KAFKA_CONSUMER_GROUP', 'transaction-consumer-group')

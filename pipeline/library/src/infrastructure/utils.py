@@ -1,3 +1,9 @@
+"""
+Utility functions for infrastructure operations.
+
+This module provides decorator functions for retry logic with exponential
+backoff for handling transient failures in API calls and database operations.
+"""
 
 import requests
 import time
@@ -12,12 +18,24 @@ def _retry_with_backoff(max_retries: int = 3, initial_delay: float = 1.0):
     """
     Decorator for exponential backoff retry logic.
     
-    Args:
-        max_retries: Maximum number of retry attempts
-        initial_delay: Initial delay in seconds for exponential backoff
+    Parameters
+    ----------
+    max_retries : int, optional
+        Maximum number of retry attempts, by default 3.
+    initial_delay : float, optional
+        Initial delay in seconds for exponential backoff, by default 1.0.
         
-    Returns:
-        Decorated function that returns (result, None) on success or (None, original_args) on failure
+    Returns
+    -------
+    Callable
+        Decorated function that returns (result, None) on success 
+        or (transactions, None) on failure.
+        
+    Notes
+    -----
+    The delay doubles after each failed attempt (exponential backoff).
+    Failed batches are logged and their transactions are returned for 
+    potential reprocessing.
     """
     def decorator(func: Callable) -> Callable:
         @wraps(func)

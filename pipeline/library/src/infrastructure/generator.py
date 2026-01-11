@@ -1,3 +1,10 @@
+"""
+Data loading and validation module.
+
+This module provides functions for loading transaction data from S3/MinIO,
+validating transactions using Pydantic models, and yielding batches for
+processing in the pipeline.
+"""
 
 import logging
 from typing import Iterator
@@ -32,19 +39,34 @@ def load_and_validate_transactions(
     """
     Load transactions from S3/MinIO and yield validated batches.
     
-    This function:
-    1. Reads CSV from S3 using Polars
-    2. Validates each transaction with Pydantic (auto-assigns UUID)
-    3. Yields batches of validated transactions
-    4. Collects invalid transactions for reporting
+    This function reads CSV data from S3, validates each transaction 
+    with Pydantic (auto-assigning UUIDs), and yields batches of 
+    validated transactions.
     
-    Args:
-        s3_path: S3 path to CSV file
-        storage_options: S3/MinIO credentials
-        batch_size: Number of transactions per batch
+    Parameters
+    ----------
+    s3_path : str
+        S3 path to CSV file (e.g., 's3://bucket/file.csv').
+    storage_options : dict
+        S3/MinIO credentials containing 'key', 'secret', and 
+        'client_kwargs' with 'endpoint_url'.
+    batch_size : int, optional
+        Number of transactions per batch, by default 100.
         
-    Returns:
-        Tuple of (validated_batches_generator, invalid_transactions_list)
+    Yields
+    ------
+    tuple[list[dict], list[dict]]
+        Tuple of (validated_transactions, invalid_transactions).
+        
+    Raises
+    ------
+    ValueError
+        If required columns are missing from the CSV.
+        
+    Notes
+    -----
+    Invalid transactions are collected and yielded alongside 
+    valid transactions for error reporting.
     """
     logger.info(f"Reading data from {s3_path}")
     

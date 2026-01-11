@@ -1,3 +1,9 @@
+"""
+ML API client module.
+
+This module provides functions for sending transaction batches to the ML API
+for fraud prediction with automatic retry logic and exponential backoff.
+"""
 
 import requests
 import logging
@@ -12,13 +18,24 @@ def predict_batch(transactions: list[dict], ml_api_url: str, batch_id: int = 0) 
     """
     Send a batch of transactions to the ML API for prediction.
     
-    Args:
-        transactions: List of transaction dictionaries
-        ml_api_url: ML API URL (e.g., 'http://ml-api:8000')
-        batch_id: Batch identifier for logging
+    Parameters
+    ----------
+    transactions : list[dict]
+        List of transaction dictionaries to be predicted.
+    ml_api_url : str
+        ML API URL (e.g., 'http://ml-api:8000').
+    batch_id : int, optional
+        Batch identifier for logging, by default 0.
         
-    Returns:
-        List of predictions from the API
+    Returns
+    -------
+    tuple[list[dict], list[dict]]
+        Tuple containing (predictions, transactions).
+        
+    Raises
+    ------
+    requests.HTTPError
+        If the API request fails or returns an error status.
     """
     response = requests.post(
         f"{ml_api_url}/predict",
