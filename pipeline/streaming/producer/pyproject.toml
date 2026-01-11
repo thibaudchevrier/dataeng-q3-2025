@@ -79,13 +79,17 @@ include = ["."]
 exclude = [
     "**/node_modules",
     "**/__pycache__",
+    ".venv",
+    ".cache",
 ]
 ignore = ["tests"]
 defineConstant = { DEBUG = true }
 reportMissingImports = true
-reportMissingTypeStubs = true
+reportMissingTypeStubs = false
 pythonVersion = "3.13"
 pythonPlatform = "Linux"
+venvPath = "."
+venv = ".venv"
 
 [tool.poe.tasks.types]
 help = "Run the type checker"

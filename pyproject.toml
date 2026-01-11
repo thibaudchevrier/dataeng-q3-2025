@@ -28,9 +28,9 @@ members = [
 [tool.poe.tasks.format-all]
 help = "Format all pipeline modules"
 shell = """
-for module in pipeline/library pipeline/batch pipeline/streaming/producer pipeline/streaming/consumer; do
+for module in pipeline/library/src pipeline/batch pipeline/streaming/producer pipeline/streaming/consumer; do
     echo "🎨 Formatting $module..."
-    cd $module && uv run poe linter-fix && cd - > /dev/null || exit 1
+    (cd $module && uv run poe linter-fix) || exit 1
 done
 echo "✅ All modules formatted successfully"
 """
@@ -38,9 +38,9 @@ echo "✅ All modules formatted successfully"
 [tool.poe.tasks.lint-all]
 help = "Run linting on all pipeline modules"
 shell = """
-for module in pipeline/library pipeline/batch pipeline/streaming/producer pipeline/streaming/consumer; do
+for module in pipeline/library/src pipeline/batch pipeline/streaming/producer pipeline/streaming/consumer; do
     echo "🔍 Linting $module..."
-    cd $module && uv run poe lint && cd - > /dev/null || exit 1
+    (cd $module && uv run poe lint) || exit 1
 done
 echo "✅ All modules linted successfully"
 """
@@ -48,9 +48,9 @@ echo "✅ All modules linted successfully"
 [tool.poe.tasks.test-all]
 help = "Run tests on all pipeline modules"
 shell = """
-for module in pipeline/library pipeline/batch pipeline/streaming/producer pipeline/streaming/consumer; do
+for module in pipeline/library/src pipeline/batch pipeline/streaming/producer pipeline/streaming/consumer; do
     echo "🧪 Testing $module..."
-    cd $module && uv run poe test && cd - > /dev/null || exit 1
+    (cd $module && uv run poe test) || exit 1
 done
 echo "✅ All module tests passed"
 """
@@ -58,9 +58,9 @@ echo "✅ All module tests passed"
 [tool.poe.tasks.types-all]
 help = "Run type checking on all pipeline modules"
 shell = """
-for module in pipeline/library pipeline/batch pipeline/streaming/producer pipeline/streaming/consumer; do
+for module in pipeline/library/src pipeline/batch pipeline/streaming/producer pipeline/streaming/consumer; do
     echo "🔎 Type checking $module..."
-    cd $module && uv run poe types && cd - > /dev/null || exit 1
+    (cd $module && uv run poe types) || exit 1
 done
 echo "✅ All modules type checked successfully"
 """
@@ -72,9 +72,9 @@ sequence = ["format-all", "types-all", "lint-all"]
 [tool.poe.tasks.clean-all]
 help = "Clean all pipeline modules"
 shell = """
-for module in pipeline/library pipeline/batch pipeline/streaming/producer pipeline/streaming/consumer; do
+for module in pipeline/library/src pipeline/batch pipeline/streaming/producer pipeline/streaming/consumer; do
     echo "🧹 Cleaning $module..."
-    cd $module && uv run poe clean && cd - > /dev/null || exit 1
+    (cd $module && uv run poe clean) || exit 1
 done
 echo "✅ All modules cleaned"
 """

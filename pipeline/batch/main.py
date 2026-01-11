@@ -8,12 +8,11 @@ and persists results to PostgreSQL database.
 
 import logging
 import os
+from collections.abc import Iterator
 from datetime import datetime
-from typing import Iterator
 
 from core import orchestrate_service
 from infrastructure import BaseService, get_db_session, load_and_validate_transactions
-from infrastructure.service import BaseService
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")

@@ -106,8 +106,13 @@ def main():
                     logger.error(f"Consumer error: {msg.error()}")
                     continue
 
+                value = msg.value()
+                if value is None:
+                    logger.warning("Received message with None value, skipping")
+                    continue
+
                 message_count += 1
-                transaction = json.loads(msg.value().decode("utf-8"))
+                transaction = json.loads(value.decode("utf-8"))
 
                 logger.debug(f"Received message #{message_count}: {transaction.get('id', 'unknown')}")
 

@@ -52,7 +52,7 @@ class ServiceProtocol(Protocol):
         """
         ...
 
-    def predict(self, transactions: list[dict]) -> list[dict]:
+    def predict(self, transactions: list[dict]) -> tuple[list[dict], list[dict]]:
         """
         Get fraud predictions from ML API for transaction batch.
 
@@ -63,8 +63,10 @@ class ServiceProtocol(Protocol):
 
         Returns
         -------
-        list[dict]
-            List of prediction dictionaries with fraud scores.
+        tuple[list[dict], list[dict]]
+            Tuple containing:
+            - List of prediction dictionaries with fraud scores
+            - List of failed transactions (if any)
         """
         ...
 

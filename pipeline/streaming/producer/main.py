@@ -186,7 +186,8 @@ async def main():
 
     if invalid_transactions:
         logger.warning(
-            f"Loaded {len(invalid_transactions)} invalid transactions during validation - these will be ignored for production"
+            f"Loaded {len(invalid_transactions)} invalid transactions during validation - "
+            f"these will be ignored for production"
         )
 
     async with get_kafka_producer(bootstrap_servers) as producer:
