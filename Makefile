@@ -4,8 +4,8 @@ help: ## Show this help message
 	@echo "Available commands:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-infra: ## Start infrastructure services (postgres, kafka, minio, ml-api, adminer, kafka-ui)
-	docker-compose up -d postgres flyway adminer minio minio-init ml-api kafka kafka-init kafka-ui
+infra: ## Start infrastructure services (postgres, kafka, minio, ml-api, adminer, kafka-ui, airflow)
+	docker-compose up -d postgres flyway adminer minio minio-init ml-api kafka kafka-init kafka-ui airflow
 
 streaming: ## Start streaming pipeline (producer-1, producer-2, consumer)
 	docker-compose --profile streaming up -d
@@ -39,6 +39,9 @@ logs-producers: ## Follow producer logs
 
 logs-ml-api: ## Follow ML API logs
 	docker-compose logs -f ml-api
+
+logs-airflow: ## Follow Airflow logs
+	docker-compose logs -f airflow
 
 logs: ## Follow all logs
 	docker-compose logs -f

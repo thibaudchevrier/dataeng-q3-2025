@@ -174,21 +174,59 @@ services:
       /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:19092 --list;
       "
 
-  batch:
-    profiles: ["batch", "all"]
+  # Batch Processor - Build the image so Airflow DockerOperator can use it
+  batch-processor:
     build:
       context: .
       dockerfile: pipeline/application/batch/service/Dockerfile
+    image: batch-processor:latest
     container_name: batch-processor
-    environment:
-      DATABASE_URL: postgresql://qonto:qonto_password@postgres:5432/transactions
-      ENDPOINT_URL: http://minio:9000
-      KEY: minioadmin
-      SECRET: minioadmin
-      ML_API_URL: http://ml-api:8000
+    # This service only needs to build the image, not run continuously
+    # The DockerOperator will spawn it on demand
+    command: "true"
+    restart: "no"
     networks:
       - ml-network
+
+  # Airflow - Simple standalone deployment with DockerOperator
+  airflow:
+    profiles: ["batch", "all"]
+    build:
+      context: .
+      dockerfile: pipeline/application/batch/orchestration/Dockerfile
+    container_name: airflow-standalone
+    environment:
+      # Use SQLite for simplicity (no separate DB needed)
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: sqlite:////opt/airflow/airflow.db
+      AIRFLOW__CORE__FERNET_KEY: ''
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      # Enable standalone mode (webserver + scheduler in one)
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
+      # Airflow 3.x uses Simple Auth Manager - set credentials
+      _AIRFLOW_STANDALONE_ADMIN_USERNAME: admin
+      _AIRFLOW_STANDALONE_ADMIN_PASSWORD: airflow
+      # Airflow Connections (format: AIRFLOW_CONN_{CONN_ID})
+      AIRFLOW_CONN_POSTGRES_TRANSACTIONS: postgresql://qonto:qonto_password@postgres:5432/transactions
+      AIRFLOW_CONN_MINIO_S3: http://minioadmin:minioadmin@minio:9000
+      AIRFLOW_CONN_ML_API: http://ml-api:8000
+    volumes:
+      - ./pipeline/application/batch/orchestration/dags:/opt/airflow/dags
+      - airflow-data:/opt/airflow
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8082:8080"
+    networks:
+      - ml-network
+    command: >
+      bash -c "
+      airflow db migrate &&
+      airflow standalone
+      "
     depends_on:
+      batch-processor:
+        condition: service_completed_successfully
       flyway:
         condition: service_completed_successfully
       adminer:
@@ -197,8 +235,8 @@ services:
         condition: service_completed_successfully
       ml-api:
         condition: service_started
-    # Run once and exit - comment out restart to run manually
-    # restart: "no"
+    restart: unless-stopped
+
 
   streaming-producer-1:
     profiles: ["streaming", "all"]
@@ -287,6 +325,7 @@ services:
 volumes:
   #postgres_data:
   minio_data:
+  airflow-data:
 
 networks:
   ml-network:
