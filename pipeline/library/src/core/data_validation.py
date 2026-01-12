@@ -56,8 +56,9 @@ def validate_transaction_records(records: list[dict]) -> tuple[list[dict], list[
 
     if invalid_transactions:
         logger.warning(f"Found {len(invalid_transactions)} invalid transactions")
-        # Log a sample of errors
-        for error in invalid_transactions[:5]:
-            logger.warning(f"  - {error.error_message}")
+        # Log a sample of invalid records
+        for record in invalid_transactions[:5]:
+            record_id = record.get("id", "unknown")
+            logger.warning(f"  - Record ID: {record_id}")
 
     return validated_transactions, invalid_transactions

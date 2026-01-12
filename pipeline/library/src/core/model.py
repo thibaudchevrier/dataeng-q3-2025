@@ -8,7 +8,7 @@ providing automatic validation, type checking, and UUID generation.
 from datetime import datetime
 from uuid import uuid4
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class Transaction(BaseModel):
@@ -39,6 +39,8 @@ class Transaction(BaseModel):
     run_id : str
         Unique identifier for the processing run.
     """
+
+    model_config = ConfigDict(extra="ignore")
 
     id: str  # Will be replaced with UUID
     description: str
@@ -98,25 +100,26 @@ class Transaction(BaseModel):
 
         Notes
         -----
-        Supports formats: 'YYYY-MM-DD HH:MM:SS' and 'YYYY-MM-DDTHH:MM:SS'.
+        Supports formats: 'YYYY-MM-DD HH:MM:SS', 'YYYY-MM-DDTHH:MM:SS',
+        and 'YYYY-MM-DDTHH:MM:SS.ffffff' (with microseconds).
         Converts to ISO format for consistent database storage.
         """
         if isinstance(v, str):
             # Handle various timestamp formats
             try:
-                # Try parsing common formats
-                dt = datetime.strptime(v, "%Y-%m-%d %H:%M:%S")
+                # Try parsing with microseconds first
+                dt = datetime.strptime(v, "%Y-%m-%dT%H:%M:%S.%f")
                 return dt.isoformat()
             except ValueError:
                 try:
-                    dt = datetime.strptime(v, "%Y-%m-%dT%H:%M:%S")
+                    # Try space-separated format
+                    dt = datetime.strptime(v, "%Y-%m-%d %H:%M:%S")
                     return dt.isoformat()
-                except ValueError as exc:
-                    raise ValueError(f"Invalid timestamp format: {v}") from exc
+                except ValueError:
+                    try:
+                        # Try basic ISO format
+                        dt = datetime.strptime(v, "%Y-%m-%dT%H:%M:%S")
+                        return dt.isoformat()
+                    except ValueError as exc:
+                        raise ValueError(f"Invalid timestamp format: {v}") from exc
         return v
-
-    class Config:
-        """Pydantic model configuration for Transaction class."""
-
-        # Allow extra fields for forward compatibility
-        extra = "ignore"

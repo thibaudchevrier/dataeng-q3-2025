@@ -48,6 +48,13 @@ done
 echo "✅ All modules linted successfully"
 """
 
+[tool.poe.tasks.test-library]
+help = "Run tests for library module only"
+shell = """
+echo "🧪 Testing pipeline/library..."
+cd pipeline/library && uv run poe test
+"""
+
 [tool.poe.tasks.test-all]
 help = "Run tests on all pipeline modules"
 shell = """

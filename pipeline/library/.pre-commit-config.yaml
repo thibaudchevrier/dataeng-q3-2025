@@ -16,3 +16,9 @@ repos:
         name: check
         entry: bash -c 'cd "$(git rev-parse --show-toplevel)/pipeline/library/src" && uv run poe check'
         language: system
+      - id: poe-tests
+        verbose: true
+        pass_filenames: false
+        name: tests
+        entry: bash -c 'cd "$(git rev-parse --show-toplevel)/pipeline/library" && uv run poe test'
+        language: system
