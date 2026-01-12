@@ -1,5 +1,4 @@
-"""
-Airflow DAG for batch transaction processing pipeline.
+"""Airflow DAG for batch transaction processing pipeline.
 
 This DAG orchestrates the batch processing of transaction data:
 - Extracts data from S3/MinIO

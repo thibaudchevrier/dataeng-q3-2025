@@ -1,5 +1,4 @@
-"""
-Service protocol definition for batch processing pipeline.
+"""Service protocol definition for batch processing pipeline.
 
 This module defines the ServiceProtocol interface that all service
 implementations must satisfy. Ensures consistent contract for data

@@ -1,5 +1,4 @@
-"""
-Pydantic data models for transaction processing.
+"""Pydantic data models for transaction processing.
 
 This module defines Pydantic models for transactions and predictions,
 providing automatic validation, type checking, and UUID generation.

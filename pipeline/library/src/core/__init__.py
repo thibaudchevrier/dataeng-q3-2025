@@ -1,5 +1,4 @@
-"""
-Core business logic layer for transaction processing.
+"""Core business logic layer for transaction processing.
 
 This package provides core domain logic including:
 - Pydantic models for transactions and predictions

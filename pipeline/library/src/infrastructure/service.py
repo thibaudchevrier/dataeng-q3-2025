@@ -1,5 +1,4 @@
-"""
-Base service module for transaction processing.
+"""Base service module for transaction processing.
 
 This module provides a base service class that encapsulates common
 operations for transaction processing pipelines, including ML predictions

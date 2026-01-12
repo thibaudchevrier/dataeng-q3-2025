@@ -1,5 +1,4 @@
-"""
-Infrastructure layer for data pipeline operations.
+"""Infrastructure layer for data pipeline operations.
 
 This package provides core infrastructure components including:
 - API clients for ML predictions

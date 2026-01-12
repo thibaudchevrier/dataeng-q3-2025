@@ -1,5 +1,4 @@
-"""
-Kafka streaming consumer for transaction processing.
+"""Kafka streaming consumer for transaction processing.
 
 This module implements a Kafka consumer that continuously consumes
 transaction messages from Kafka topics, processes them (validation,

@@ -1,5 +1,4 @@
-"""
-Transaction validation module.
+"""Transaction validation module.
 
 This module provides Pydantic-based validation for transaction records,
 ensuring data quality and automatically generating UUIDs for valid

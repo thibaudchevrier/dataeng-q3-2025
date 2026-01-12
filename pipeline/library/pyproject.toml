@@ -1,7 +1,7 @@
 [project]
 name = "library"
 version = "0.1.0"
-description = "Share code for producer, batch and streaming processing."
+description = "Shared transaction processing library providing core business logic and infrastructure components for batch and streaming pipelines"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

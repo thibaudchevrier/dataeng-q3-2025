@@ -1,5 +1,4 @@
-"""
-ML API client module.
+"""ML API client module.
 
 This module provides functions for sending transaction batches to the ML API
 for fraud prediction with automatic retry logic and exponential backoff.

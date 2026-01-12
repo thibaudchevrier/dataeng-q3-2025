@@ -1,5 +1,4 @@
-"""
-Utility functions for infrastructure operations.
+"""Utility functions for infrastructure operations.
 
 This module provides decorator functions for retry logic with exponential
 backoff for handling transient failures in API calls and database operations.

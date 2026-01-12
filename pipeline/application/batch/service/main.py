@@ -1,5 +1,4 @@
-"""
-Batch processing pipeline for transaction data.
+"""Batch processing pipeline for transaction data.
 
 This module implements a batch processing pipeline that loads transactions
 from S3/MinIO, validates them, performs ML fraud predictions in parallel,

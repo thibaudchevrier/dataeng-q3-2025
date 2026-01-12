@@ -1,5 +1,4 @@
-"""
-Kafka streaming producer for transaction data.
+"""Kafka streaming producer for transaction data.
 
 This module implements an async Kafka producer that continuously streams
 transaction data to Kafka topics, simulating real-time transaction events

@@ -1,5 +1,4 @@
-"""
-Data loading and validation module.
+"""Data loading and validation module.
 
 This module provides functions for loading transaction data from S3/MinIO,
 validating transactions using Pydantic models, and yielding batches for

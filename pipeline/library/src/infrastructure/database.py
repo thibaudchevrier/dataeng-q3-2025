@@ -1,5 +1,4 @@
-"""
-Database operations module for PostgreSQL.
+"""Database operations module for PostgreSQL.
 
 This module provides SQLAlchemy models for transactions and predictions,
 session management utilities, and bulk insert/upsert operations with

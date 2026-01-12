@@ -1,5 +1,4 @@
-"""
-Service orchestration module for batch processing.
+"""Service orchestration module for batch processing.
 
 This module provides orchestration logic for processing transaction batches
 with parallel API calls, error handling, and bulk database operations.
