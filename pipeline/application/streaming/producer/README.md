@@ -1,6 +1,6 @@
 # Streaming Producer
 
-Kafka producer application that continuously streams transaction data to simulate real-time transaction events for fraud detection pipelines.
+Kafka producer application that continuously streams transaction data to simulate real-time transaction events for transaction classification pipelines.
 
 ## 📋 Table of Contents
 

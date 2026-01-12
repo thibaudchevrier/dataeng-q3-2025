@@ -113,7 +113,7 @@ class StreamingService(BaseService):
         consumer : Consumer
             Confluent Kafka consumer instance (already subscribed to topic).
         ml_api_url : str
-            ML API endpoint URL for fraud predictions.
+            ML API endpoint URL for classification predictions.
         db_session : Session
             SQLAlchemy session for database operations.
         message_batch_size : int, optional

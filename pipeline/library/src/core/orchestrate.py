@@ -22,7 +22,7 @@ def orchestrate_service(
 
     This function coordinates the entire batch processing workflow:
     - Loading and validating transactions in batches
-    - Parallel API calls for fraud predictions
+    - Parallel API calls for classification predictions
     - Bulk database writes for results
     - Error tracking and reporting
 

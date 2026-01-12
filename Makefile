@@ -1,4 +1,4 @@
-.PHONY: help infra streaming batch all up down logs clean
+.PHONY: help infra streaming batch all up down logs clean clean-network status
 
 help: ## Show this help message
 	@echo "Available commands:"
@@ -11,7 +11,7 @@ streaming: ## Start streaming pipeline (producer-1, producer-2, consumer)
 	docker-compose --profile streaming up -d
 
 batch: ## Start batch pipeline
-	docker-compose --profile batch up
+	docker-compose --profile batch up -d
 
 all: ## Start all services (infra + streaming + batch)
 	docker-compose --profile all up -d
@@ -19,8 +19,19 @@ all: ## Start all services (infra + streaming + batch)
 up: infra ## Alias for 'infra' - start infrastructure only
 	@echo "Infrastructure started!"
 
-down: ## Stop all services
-	docker-compose down
+down: ## Stop all services (keeps volumes)
+	docker-compose --profile all down --remove-orphans
+
+down-clean: ## Stop all services and remove volumes (complete cleanup)
+	docker-compose --profile all down -v --remove-orphans
+	docker network prune -f
+
+status: ## Show status of all containers
+	@echo "=== Container Status ==="
+	@docker-compose ps
+	@echo ""
+	@echo "=== Network Status ==="
+	@docker network ls | grep -E "NETWORK ID|dataeng-q3-2025" || echo "No project networks found"
 
 logs-all: ## Follow all pipeline services logs (streaming + batch)
 	docker-compose logs -f streaming-producer-1 streaming-producer-2 streaming-consumer batch
@@ -46,9 +57,24 @@ logs-airflow: ## Follow Airflow logs
 logs: ## Follow all logs
 	docker-compose logs -f
 
-clean: ## Stop and remove all containers, networks, volumes
-	docker-compose down -v
-	docker system prune -f
+clean: ## Stop and remove all containers, networks, volumes (safe cleanup)
+	docker-compose --profile all down -v --remove-orphans
+	docker network prune -f
+	@echo "✓ Cleaned up project containers, networks, and volumes"
+
+clean-all: ## Deep clean - removes all unused Docker resources (use with caution)
+	docker-compose --profile all down -v --remove-orphans
+	docker system prune -af --volumes
+	@echo "✓ Deep cleaned all unused Docker resources"
+
+clean-network: ## Fix network issues by removing orphaned containers and networks
+	@echo "Stopping all containers..."
+	-docker-compose --profile all down --remove-orphans 2>/dev/null || true
+	@echo "Removing orphaned containers..."
+	-docker ps -aq --filter "label=com.docker.compose.project=dataeng-q3-2025" | xargs -r docker rm -f 2>/dev/null || true
+	@echo "Cleaning networks..."
+	-docker network prune -f
+	@echo "✓ Network cleanup complete. Run 'make all' to restart services."
 
 rebuild-streaming: ## Rebuild and restart streaming services
 	docker-compose --profile streaming up -d --build

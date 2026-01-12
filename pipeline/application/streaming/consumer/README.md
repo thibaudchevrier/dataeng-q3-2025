@@ -1,6 +1,6 @@
 # Streaming Consumer
 
-Kafka consumer application that processes real-time transaction messages for fraud detection. Validates transactions, calls ML API for predictions, and persists results to PostgreSQL.
+Kafka consumer application that processes real-time transaction messages for transaction classification. Validates transactions, calls ML API for predictions, and persists results to PostgreSQL.
 
 ## 📋 Table of Contents
 
@@ -23,7 +23,7 @@ The streaming consumer provides real-time transaction processing by:
 
 1. **Consuming** messages from Kafka `transactions` topic
 2. **Validating** each transaction against Pydantic models
-3. **Predicting** fraud scores via ML API
+3. **Classifying** transactions via ML API
 4. **Persisting** results to PostgreSQL
 5. **Handling** errors by producing failed messages to error topic
 
@@ -63,7 +63,7 @@ The streaming consumer provides real-time transaction processing by:
 ┌─────────────────────────────┐
 │  ML API                     │
 │  - POST /predict            │
-│  - Get fraud scores         │
+│  - Get classification       │
 └──────┬──────────────────────┘
        │ Predictions
        ▼
@@ -339,7 +339,7 @@ SELECT COUNT(*)
 FROM transactions 
 WHERE created_at > NOW() - INTERVAL '1 hour';
 
--- Fraud detection rate
+-- Classification rate
 SELECT 
     prediction,
     COUNT(*) as count,
@@ -541,7 +541,7 @@ error_producer.produce(
 - **Library** (`../../library/`) - Shared validation, API, database logic
 - **Streaming Producer** (`../producer/`) - Produces messages to consume
 - **Batch Pipeline** (`../../batch/`) - Similar processing for historical data
-- **ML API** (`../../../ml_api/`) - Fraud detection service
+- **ML API** (`../../../ml_api/`) - Transaction classification service
 
 ## 📝 Next Steps
 

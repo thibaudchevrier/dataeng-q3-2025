@@ -23,14 +23,14 @@ class BaseService:
     Attributes
     ----------
     ml_api_url : str
-        URL for ML fraud detection API.
+        URL for ML classification API.
     db_session : Session
         SQLAlchemy database session for persistence.
 
     Methods
     -------
     predict(transactions: list[dict]) -> tuple[list[dict], list[dict]]
-        Get fraud predictions from ML API.
+        Get classification predictions from ML API.
     bulk_write(transactions: list[dict], predictions: list[dict]) -> None
         Persist transactions and predictions to database.
     read(batch_size: int) -> Iterator[tuple[list[dict], list[dict]]]
@@ -49,7 +49,7 @@ class BaseService:
         Parameters
         ----------
         ml_api_url : str
-            ML API endpoint URL for fraud predictions.
+            ML API endpoint URL for classification predictions.
         db_session : Session
             SQLAlchemy session for database operations.
 
@@ -63,7 +63,7 @@ class BaseService:
 
     def predict(self, transactions: list[dict]) -> tuple[list[dict], list[dict]]:
         """
-        Get fraud predictions from ML API for transaction batch.
+        Get classification predictions from ML API for transaction batch.
 
         Parameters
         ----------

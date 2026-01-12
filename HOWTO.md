@@ -1,6 +1,6 @@
-# HOWTO Guide - Fraud Detection Pipeline
+# HOWTO Guide - Transaction Classification Pipeline
 
-Complete guide for running, managing, and testing the fraud detection data pipeline.
+Complete guide for running, managing, and testing the transaction classification data pipeline.
 
 ## 📋 Table of Contents
 
@@ -102,7 +102,7 @@ docker-compose up -d postgres flyway adminer minio minio-init ml-api
 - Flyway (database migrations)
 - Adminer (database UI)
 - MinIO (S3-compatible object storage)
-- ML API (fraud prediction service)
+- ML API (transaction classification service)
 
 ### Batch Pipeline
 
@@ -200,11 +200,55 @@ make batch
 # Start everything (infra + streaming + batch)
 make all
 
-# Stop all services
+# Check status of all services
+make status
+
+# Stop all services (keeps volumes)
 make down
 
 # Stop and clean everything (including volumes)
 make clean
+
+# Fix network issues (if services won't start)
+make clean-network
+```
+
+### Best Practices for Clean Docker State
+
+**To avoid network conflicts and orphaned containers:**
+
+```bash
+# Always use --remove-orphans when stopping
+make down          # Already includes --remove-orphans
+
+# Use clean instead of down when switching configurations
+make clean         # Removes volumes and networks
+
+# If you encounter network errors
+make clean-network # Fixes orphaned containers/networks
+make all           # Restart everything
+
+# Weekly maintenance (optional)
+make clean-all     # Deep clean unused Docker resources
+```
+
+**Common scenarios:**
+
+```bash
+# Switching from streaming to batch
+make down
+make batch
+
+# Fresh start with clean data
+make clean
+make all
+
+# Network error occurred
+make clean-network
+make all
+
+# Free up disk space
+make clean-all  # Removes ALL unused Docker resources
 ```
 
 ### Viewing Logs
@@ -289,7 +333,7 @@ psql -h localhost -p 5432 -U qonto -d transactions
 
 **What to check:**
 - `transactions` table: All processed transactions with UUIDs
-- `predictions` table: Fraud prediction results
+- `predictions` table: Transaction classification results
 - Row counts and recent records
 
 #### MinIO (S3 Storage)
@@ -396,6 +440,41 @@ docker-compose restart <service-name>
 
 # Rebuild and restart
 docker-compose up -d --build <service-name>
+```
+
+#### Docker Network Issues
+
+**Symptom:** Error like "failed to set up container networking: network XXX not found"
+
+**Cause:** Orphaned containers still attached to old networks
+
+**Solution:**
+
+```bash
+# Quick fix
+make clean-network
+make all
+
+# Or manual steps
+docker-compose down --remove-orphans
+docker ps -a | grep dataeng-q3-2025  # Check for orphaned containers
+docker rm -f <container-names>       # Remove any orphaned containers
+docker network prune -f              # Clean up networks
+docker-compose up -d                 # Restart
+```
+
+**Prevention:**
+
+```bash
+# Always use --remove-orphans (built into Makefile)
+make down              # Instead of: docker-compose down
+
+# Clean state between runs
+make clean             # Removes volumes too
+make all
+
+# Regular maintenance
+make clean-all         # Weekly cleanup of unused resources
 ```
 
 #### Database Connection Issues
@@ -698,17 +777,39 @@ docker-compose --profile streaming up -d --scale streaming-consumer=3
 # Start everything
 make all
 
-# Stop everything
+# Stop everything (properly stops all profiles)
 make down
 
-# Clean everything
+# Clean everything (including volumes)
 make clean
 
 # View logs
 make logs
 
+# Check service status
+make status
+
 # Run tests
 cd pipeline/library && uv run pytest tests
+
+# Fix network issues
+make clean-network
+```
+
+### Why `make down` Now Works Properly
+
+**Previous Issue:** The `! Network dataeng-q3-2025_ml-network Resource ...` warning appeared because `docker-compose down` without profiles only stopped infrastructure containers, leaving streaming/batch containers running and attached to the network.
+
+**Solution:** All cleanup commands now use `--profile all` to ensure ALL containers (infrastructure + streaming + batch) are stopped together, allowing the network to be cleanly removed.
+
+```bash
+# Before (problematic)
+docker-compose down                    # Only stops infra, network warning appears
+
+# After (fixed)
+docker-compose --profile all down      # Stops everything, network removed cleanly
+# Or just use: make down
+```
 
 # Code quality
 cd pipeline/library && uv run pre-commit run --all-files

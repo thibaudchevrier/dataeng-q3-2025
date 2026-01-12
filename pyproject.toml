@@ -1,7 +1,7 @@
 [project]
 name = "dataeng-q3-2025"
 version = "0.1.0"
-description = "Data Engineering Q3 2025 - Fraud Detection Pipeline"
+description = "Data Engineering Q3 2025 - Transaction Classification Pipeline"
 readme = "README.md"
 requires-python = ">=3.12"
 

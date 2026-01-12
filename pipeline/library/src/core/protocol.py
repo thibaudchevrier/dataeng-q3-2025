@@ -23,7 +23,7 @@ class ServiceProtocol(Protocol):
     read(batch_size: int) -> Iterator[tuple[list[dict], list[dict]]]
         Load and validate transactions from source, yielding batches.
     predict(transactions: list[dict]) -> list[dict]
-        Get fraud predictions from ML API for transaction batch.
+        Get classification predictions from ML API for transaction batch.
     bulk_write(transactions: list[dict], predictions: list[dict]) -> None
         Persist transactions and predictions to database.
 
@@ -53,7 +53,7 @@ class ServiceProtocol(Protocol):
 
     def predict(self, transactions: list[dict]) -> tuple[list[dict], list[dict]]:
         """
-        Get fraud predictions from ML API for transaction batch.
+        Get classification predictions from ML API for transaction batch.
 
         Parameters
         ----------
@@ -64,7 +64,7 @@ class ServiceProtocol(Protocol):
         -------
         tuple[list[dict], list[dict]]
             Tuple containing:
-            - List of prediction dictionaries with fraud scores
+            - List of prediction dictionaries with classification scores
             - List of failed transactions (if any)
         """
         ...

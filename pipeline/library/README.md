@@ -154,7 +154,7 @@ Transaction validation using Pydantic models.
 #### `infrastructure/api.py`
 ML API client with retry logic.
 
-- `predict_batch()`: Send transactions for fraud prediction
+- `predict_batch()`: Send transactions for classification prediction
 - Automatic retry with exponential backoff
 - Handles API failures gracefully
 
@@ -273,7 +273,7 @@ predictions = predict_batch(
 )
 
 for pred in predictions:
-    print(f"Transaction {pred['transaction_id']}: {pred['fraud_score']}")
+    print(f"Transaction {pred['transaction_id']}: {pred['category']}")
 ```
 
 ## 📚 API Reference
@@ -293,7 +293,7 @@ Orchestrate batch processing with parallel API calls and bulk writes.
 ### Infrastructure API
 
 #### `predict_batch(transactions: list[dict], ml_api_url: str, batch_id: int = 0) -> list[dict]`
-Get fraud predictions from ML API with automatic retry.
+Get classification predictions from ML API with automatic retry.
 
 #### `db_write_results(session: Session, transactions: list[dict], predictions: list[dict]) -> None`
 Bulk insert/upsert transactions and predictions to database.

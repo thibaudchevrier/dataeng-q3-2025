@@ -1,7 +1,7 @@
 """Batch processing pipeline for transaction data.
 
 This module implements a batch processing pipeline that loads transactions
-from S3/MinIO, validates them, performs ML fraud predictions in parallel,
+from S3/MinIO, validates them, performs ML classification predictions in parallel,
 and persists results to PostgreSQL database.
 """
 
@@ -64,7 +64,7 @@ class BatchService(BaseService):
             - secret: MinIO secret key
             - client_kwargs: Dict with endpoint_url
         ml_api_url : str
-            ML API endpoint URL for fraud predictions.
+            ML API endpoint URL for classification predictions.
         db_session : Session
             SQLAlchemy session for database operations.
 

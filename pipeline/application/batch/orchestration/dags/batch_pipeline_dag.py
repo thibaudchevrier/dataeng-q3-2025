@@ -3,7 +3,7 @@
 This DAG orchestrates the batch processing of transaction data:
 - Extracts data from S3/MinIO
 - Validates transaction records
-- Performs ML fraud predictions
+- Performs ML classification predictions
 - Loads results into PostgreSQL database
 
 Schedule: Daily at 2 AM UTC
@@ -64,7 +64,7 @@ default_args = {
 with DAG(
     dag_id="batch_transaction_pipeline",
     default_args=default_args,
-    description="Batch processing pipeline for fraud detection on transaction data",
+    description="Batch processing pipeline for transaction classification on transaction data",
     schedule="*/2 * * * *",  # Every 2 minutes
     start_date=datetime(2026, 1, 1),
     catchup=False,

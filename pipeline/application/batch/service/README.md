@@ -1,6 +1,6 @@
 # Batch Processing Pipeline
 
-Batch processing application for fraud detection on historical transaction data. Loads transactions from S3/MinIO, performs parallel ML predictions, and persists results to PostgreSQL.
+Batch processing application for transaction classification on historical transaction data. Loads transactions from S3/MinIO, performs parallel ML predictions, and persists results to PostgreSQL.
 
 ## 📋 Table of Contents
 
@@ -88,7 +88,7 @@ The batch pipeline processes large volumes of historical transaction data in an 
 3. **Data Flow**
    - Source: CSV files in S3/MinIO buckets
    - Validation: Pydantic models ensure data quality
-   - API: ML fraud detection service
+   - API: ML classification service
    - Storage: PostgreSQL with transactions + predictions tables
 
 ## 📋 Prerequisites
@@ -284,7 +284,7 @@ Check processing results:
 -- Total transactions processed
 SELECT COUNT(*) FROM transactions;
 
--- Fraud detection summary
+-- Classification summary
 SELECT 
     prediction,
     COUNT(*) as count,
@@ -380,7 +380,7 @@ batch/
 ## 🤝 Related Components
 
 - **Library** (`../library/`) - Shared business logic and infrastructure
-- **ML API** (`../../ml_api/`) - Fraud detection service
+- **ML API** (`../../ml_api/`) - Transaction classification service
 - **Streaming Producer** (`../streaming/producer/`) - Real-time transaction simulation
 - **Streaming Consumer** (`../streaming/consumer/`) - Real-time processing
 

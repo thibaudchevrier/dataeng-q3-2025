@@ -1,7 +1,7 @@
 [project]
 name = "consumer"
 version = "0.1.0"
-description = "Kafka consumer for real-time transaction processing and fraud detection"
+description = "Kafka consumer for real-time transaction processing and transaction classification"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
