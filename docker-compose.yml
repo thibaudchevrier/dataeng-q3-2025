@@ -28,11 +28,11 @@ services:
     image: postgres:15.10-alpine
     container_name: transactions-db
     environment:
-      POSTGRES_USER: qonto
-      POSTGRES_PASSWORD: qonto_password
-      POSTGRES_DB: transactions
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT}:5432"
     # Use tmpfs for ephemeral database (resets on container restart)
     # Comment out for persistent storage, uncomment for clean slate each time
     tmpfs:
@@ -42,7 +42,7 @@ services:
     networks:
       - ml-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U qonto -d transactions"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -50,7 +50,7 @@ services:
   flyway:
     image: flyway/flyway:10.21
     container_name: flyway-migrations
-    command: -url=jdbc:postgresql://postgres:5432/transactions -user=qonto -password=qonto_password -connectRetries=60 migrate
+    command: -url=jdbc:postgresql://${POSTGRES_HOST}:5432/${POSTGRES_DB} -user=${POSTGRES_USER} -password=${POSTGRES_PASSWORD} -connectRetries=60 migrate
     volumes:
       - ./migrations:/flyway/sql
     networks:
@@ -75,11 +75,11 @@ services:
     image: minio/minio:RELEASE.2024-12-18T13-15-44Z
     container_name: minio-storage
     ports:
-      - "9000:9000"  # API
-      - "9001:9001"  # Console UI
+      - "${MINIO_PORT}:9000"  # API
+      - "${MINIO_CONSOLE_PORT}:9001"  # Console UI
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
@@ -105,9 +105,9 @@ services:
       - ./data:/data
     entrypoint: >
       /bin/sh -c "
-      mc alias set myminio http://minio:9000 minioadmin minioadmin;
-      mc mb myminio/transactions --ignore-existing;
-      mc cp /data/transactions_fr.csv myminio/transactions/transactions_fr.csv;
+      mc alias set myminio http://${MINIO_HOST}:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
+      mc mb myminio/${MINIO_BUCKET} --ignore-existing;
+      mc cp /data/transactions_fr.csv myminio/${MINIO_BUCKET}/transactions_fr.csv;
       echo 'Data uploaded to MinIO successfully';
       "
 
@@ -236,9 +236,9 @@ services:
       # Enable standalone mode (webserver + scheduler in one)
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
       # Airflow Connections (format: AIRFLOW_CONN_{CONN_ID})
-      AIRFLOW_CONN_POSTGRES_TRANSACTIONS: postgresql://qonto:qonto_password@postgres:5432/transactions
-      AIRFLOW_CONN_MINIO_S3: http://minioadmin:minioadmin@minio:9000
-      AIRFLOW_CONN_ML_API: http://ml-api:8000
+      AIRFLOW_CONN_POSTGRES_TRANSACTIONS: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:5432/${POSTGRES_DB}
+      AIRFLOW_CONN_MINIO_S3: http://${MINIO_ROOT_USER}:${MINIO_ROOT_PASSWORD}@${MINIO_HOST}:9000
+      AIRFLOW_CONN_ML_API: http://${ML_API_HOST}:${ML_API_PORT}
     volumes:
       - ./pipeline/application/batch/orchestration/dags:/opt/airflow/dags
       - airflow-data:/opt/airflow
@@ -276,15 +276,15 @@ services:
       dockerfile: pipeline/application/streaming/producer/Dockerfile
     container_name: streaming-producer-1
     environment:
-      ENDPOINT_URL: http://minio:9000
-      KEY: minioadmin
-      SECRET: minioadmin
-      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
-      KAFKA_TOPIC: transactions
-      PRODUCE_INTERVAL: "0.5"  # Faster interval: every 0.5 second
-      MIN_RECORDS_PER_BATCH: "1"
-      MAX_RECORDS_PER_BATCH: "10"
-      PRODUCER_RUN_ID: streaming-producer-1
+      ENDPOINT_URL: ${MINIO_ENDPOINT_URL}
+      KEY: ${MINIO_ROOT_USER}
+      SECRET: ${MINIO_ROOT_PASSWORD}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+      KAFKA_TOPIC: ${KAFKA_TOPIC}
+      PRODUCE_INTERVAL: ${PRODUCER_1_INTERVAL}
+      MIN_RECORDS_PER_BATCH: ${PRODUCER_1_MIN_RECORDS}
+      MAX_RECORDS_PER_BATCH: ${PRODUCER_1_MAX_RECORDS}
+      PRODUCER_RUN_ID: ${PRODUCER_1_RUN_ID}
     networks:
       - ml-network
     depends_on:
@@ -303,15 +303,15 @@ services:
       dockerfile: pipeline/application/streaming/producer/Dockerfile
     container_name: streaming-producer-2
     environment:
-      ENDPOINT_URL: http://minio:9000
-      KEY: minioadmin
-      SECRET: minioadmin
-      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
-      KAFKA_TOPIC: transactions
-      PRODUCE_INTERVAL: "1.0"  # Slower interval: every 1 second
-      MIN_RECORDS_PER_BATCH: "5"  # Larger batches: 5-20 records
-      MAX_RECORDS_PER_BATCH: "20"
-      PRODUCER_RUN_ID: streaming-producer-2
+      ENDPOINT_URL: ${MINIO_ENDPOINT_URL}
+      KEY: ${MINIO_ROOT_USER}
+      SECRET: ${MINIO_ROOT_PASSWORD}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+      KAFKA_TOPIC: ${KAFKA_TOPIC}
+      PRODUCE_INTERVAL: ${PRODUCER_2_INTERVAL}
+      MIN_RECORDS_PER_BATCH: ${PRODUCER_2_MIN_RECORDS}
+      MAX_RECORDS_PER_BATCH: ${PRODUCER_2_MAX_RECORDS}
+      PRODUCER_RUN_ID: ${PRODUCER_2_RUN_ID}
     networks:
       - ml-network
     depends_on:
@@ -330,16 +330,16 @@ services:
       dockerfile: pipeline/application/streaming/consumer/Dockerfile
     container_name: streaming-consumer
     environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
-      KAFKA_CONSUMER_GROUP: transaction-consumer-group
-      KAFKA_TOPIC: transactions
-      ML_API_URL: http://ml-api:8000
-      DATABASE_URL: postgresql://qonto:qonto_password@postgres:5432/transactions
-      MESSAGE_BATCH_SIZE: "50"
-      API_BATCH_SIZE: "10"
-      API_MAX_WORKERS: "5"
-      DB_ROW_BATCH_SIZE: "50"
-      BUFFER_TIMEOUT: "5.0"
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+      KAFKA_CONSUMER_GROUP: ${KAFKA_CONSUMER_GROUP}
+      KAFKA_TOPIC: ${KAFKA_TOPIC}
+      ML_API_URL: ${ML_API_URL}
+      DATABASE_URL: ${DATABASE_URL}
+      MESSAGE_BATCH_SIZE: ${STREAMING_MESSAGE_BATCH_SIZE}
+      API_BATCH_SIZE: ${STREAMING_API_BATCH_SIZE}
+      API_MAX_WORKERS: ${STREAMING_API_MAX_WORKERS}
+      DB_ROW_BATCH_SIZE: ${STREAMING_DB_ROW_BATCH_SIZE}
+      BUFFER_TIMEOUT: ${STREAMING_BUFFER_TIMEOUT}
     networks:
       - ml-network
     depends_on:
