@@ -813,7 +813,7 @@ docker-compose --profile all down      # Stops everything, network removed clean
 
 # Code quality
 cd pipeline/library && uv run pre-commit run --all-files
-```
+
 
 ### Port Reference
 
